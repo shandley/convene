@@ -1,0 +1,19 @@
+{
+    "mcpServers": {
+      "supabase": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@supabase/mcp-server-supabase@latest",
+          "--read-only",
+          "--project-ref=mfwionbthxrjauwhvwcqw"
+        ],
+        "env": {
+          "SUPABASE_ACCESS_TOKEN": "sbp_7ebc57d77b4d1845b9bf947ca077f0fad80f3682"
+        }
+      },
+      "vercel": {
+        "url": "https://mcp.vercel.com/scott-handleys-projects/convene"
+      }
+    }
+  }

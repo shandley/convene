@@ -28,6 +28,14 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.database
+
+# Claude session files and temporary data
+.claude/.audit-request
+.claude/.prime-request  
+.claude/.session-info
+.claude/backups/
+.claude/settings*.json
 
 # vercel
 .vercel

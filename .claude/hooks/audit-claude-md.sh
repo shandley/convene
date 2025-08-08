@@ -1,0 +1,309 @@
+#!/bin/bash
+
+# Enhanced Claude.md Audit Hook with Visual Feedback and Intelligence
+# This script runs after Claude finishes responding to audit and prune the CLAUDE.md file
+
+# ANSI color codes for better visibility
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+CLAUDE_MD="$PROJECT_DIR/CLAUDE.md"
+CLAUDE_ARCHIVE="$PROJECT_DIR/CLAUDE_ARCHIVE.md"
+TRIGGER_FILE="$PROJECT_DIR/.claude/.audit-trigger"
+SESSION_FILE="$PROJECT_DIR/.claude/.session-info"
+AUDIT_LOG="$PROJECT_DIR/.claude/.audit-log"
+
+# Track metrics
+LINES_BEFORE=0
+LINES_AFTER=0
+SIZE_BEFORE=0
+SIZE_AFTER=0
+SECTIONS_MOVED=0
+TODOS_COMPLETED=0
+ERRORS=0
+WARNINGS=0
+
+# Function to print colored status messages
+print_status() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+    ((WARNINGS++))
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $1"
+    ((ERRORS++))
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+print_header() {
+    echo -e "\n${BOLD}$1${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
+# Function to check if this is likely a session end
+check_session_end() {
+    if [ -f "$TRIGGER_FILE" ]; then
+        KEYWORD=$(cat "$TRIGGER_FILE" 2>/dev/null || echo "unknown")
+        rm "$TRIGGER_FILE"
+        print_status "Session end trigger detected: '$KEYWORD'"
+        return 0
+    fi
+    return 1
+}
+
+# Function to create a backup before auditing
+backup_claude_md() {
+    if [ -f "$CLAUDE_MD" ]; then
+        TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+        BACKUP_DIR="$PROJECT_DIR/.claude/backups"
+        mkdir -p "$BACKUP_DIR"
+        
+        BACKUP_FILE="$BACKUP_DIR/CLAUDE_${TIMESTAMP}.md"
+        cp "$CLAUDE_MD" "$BACKUP_FILE"
+        
+        if [ -f "$BACKUP_FILE" ]; then
+            BACKUP_SIZE=$(wc -c < "$BACKUP_FILE" | xargs)
+            print_status "Backup created: CLAUDE_${TIMESTAMP}.md (${BACKUP_SIZE} bytes)"
+            return 0
+        else
+            print_error "Failed to create backup"
+            return 1
+        fi
+    else
+        print_warning "CLAUDE.md not found - nothing to backup"
+        return 1
+    fi
+}
+
+# Function to collect audit metrics
+collect_metrics() {
+    if [ -f "$CLAUDE_MD" ]; then
+        LINES_BEFORE=$(wc -l < "$CLAUDE_MD" | xargs)
+        SIZE_BEFORE=$(wc -c < "$CLAUDE_MD" | xargs)
+        
+        # Count completed TODOs (lines with ✅ or [x])
+        TODOS_COMPLETED=$(grep -c -E '(✅|✓|\[x\])' "$CLAUDE_MD" 2>/dev/null || echo 0)
+        
+        print_info "Pre-audit metrics: $LINES_BEFORE lines, $SIZE_BEFORE bytes"
+        print_info "Completed items detected: $TODOS_COMPLETED"
+    fi
+}
+
+# Function to generate session summary from git
+get_git_session_summary() {
+    if command -v git &> /dev/null && [ -d "$PROJECT_DIR/.git" ]; then
+        print_header "📊 Git Activity Summary"
+        
+        # Get session start time if available
+        if [ -f "$SESSION_FILE" ]; then
+            SESSION_START_TIME=$(grep "^SESSION_START_TIME=" "$SESSION_FILE" | cut -d= -f2)
+            if [ -n "$SESSION_START_TIME" ]; then
+                # Count commits since session start
+                COMMIT_COUNT=$(git log --since="$SESSION_START_TIME" --oneline 2>/dev/null | wc -l | xargs)
+                print_info "Commits this session: $COMMIT_COUNT"
+                
+                # Get files changed
+                FILES_CHANGED=$(git diff --name-only HEAD@{1} 2>/dev/null | wc -l | xargs)
+                if [ "$FILES_CHANGED" -gt 0 ]; then
+                    print_info "Files modified: $FILES_CHANGED"
+                    
+                    # Show top 5 changed files
+                    echo "  Top changed files:"
+                    git diff --stat HEAD@{1} 2>/dev/null | head -6 | tail -5 | sed 's/^/    /'
+                fi
+                
+                # Get current branch
+                BRANCH=$(git branch --show-current 2>/dev/null)
+                print_info "Working branch: $BRANCH"
+            fi
+        fi
+        
+        # Check for uncommitted changes
+        UNCOMMITTED=$(git status --short 2>/dev/null | wc -l | xargs)
+        if [ "$UNCOMMITTED" -gt 0 ]; then
+            print_warning "Uncommitted changes: $UNCOMMITTED files"
+        fi
+    fi
+}
+
+# Function to auto-commit CLAUDE.md changes
+auto_commit_changes() {
+    if command -v git &> /dev/null && [ -d "$PROJECT_DIR/.git" ]; then
+        # Check if CLAUDE.md has changes
+        if git diff --quiet "$CLAUDE_MD" 2>/dev/null; then
+            print_info "No changes to CLAUDE.md to commit"
+        else
+            print_header "🔄 Git Auto-Commit"
+            
+            # Stage CLAUDE.md and CLAUDE_ARCHIVE.md
+            git add "$CLAUDE_MD" 2>/dev/null
+            if [ -f "$CLAUDE_ARCHIVE" ]; then
+                git add "$CLAUDE_ARCHIVE" 2>/dev/null
+            fi
+            
+            # Generate commit message with session info
+            COMMIT_MSG="docs: Auto-audit CLAUDE.md at session end"
+            
+            if [ -f "$SESSION_FILE" ]; then
+                # Add session duration to commit message
+                SESSION_START=$(grep "^SESSION_START=" "$SESSION_FILE" | cut -d= -f2)
+                SESSION_END=$(grep "^SESSION_END=" "$SESSION_FILE" | cut -d= -f2)
+                
+                if [ -n "$SESSION_START" ] && [ -n "$SESSION_END" ]; then
+                    DURATION=$((SESSION_END - SESSION_START))
+                    HOURS=$((DURATION / 3600))
+                    MINUTES=$(((DURATION % 3600) / 60))
+                    COMMIT_MSG="$COMMIT_MSG
+
+Session duration: ${HOURS}h ${MINUTES}m"
+                fi
+                
+                # Add metrics to commit message
+                if [ "$LINES_BEFORE" -gt 0 ] && [ "$LINES_AFTER" -gt 0 ]; then
+                    LINES_REDUCED=$((LINES_BEFORE - LINES_AFTER))
+                    SIZE_REDUCED=$((SIZE_BEFORE - SIZE_AFTER))
+                    COMMIT_MSG="$COMMIT_MSG
+Audit results: Reduced $LINES_REDUCED lines, saved $SIZE_REDUCED bytes"
+                fi
+                
+                if [ "$TODOS_COMPLETED" -gt 0 ]; then
+                    COMMIT_MSG="$COMMIT_MSG
+Completed TODOs: $TODOS_COMPLETED"
+                fi
+            fi
+            
+            # Perform the commit
+            if git commit -m "$COMMIT_MSG" > /dev/null 2>&1; then
+                COMMIT_HASH=$(git rev-parse --short HEAD)
+                print_status "Auto-committed changes: $COMMIT_HASH"
+                print_info "  └─ $(echo "$COMMIT_MSG" | head -1)"
+            else
+                print_warning "Failed to auto-commit (may already be staged or no changes)"
+            fi
+        fi
+    fi
+}
+
+# Function to calculate post-audit metrics
+calculate_audit_results() {
+    if [ -f "$CLAUDE_MD" ]; then
+        LINES_AFTER=$(wc -l < "$CLAUDE_MD" | xargs)
+        SIZE_AFTER=$(wc -c < "$CLAUDE_MD" | xargs)
+        
+        if [ "$LINES_BEFORE" -gt 0 ]; then
+            LINES_REDUCED=$((LINES_BEFORE - LINES_AFTER))
+            SIZE_REDUCED=$((SIZE_BEFORE - SIZE_AFTER))
+            REDUCTION_PERCENT=$((SIZE_REDUCED * 100 / SIZE_BEFORE))
+            
+            print_header "📈 Audit Results"
+            
+            if [ "$LINES_REDUCED" -gt 0 ]; then
+                print_status "Lines reduced: $LINES_REDUCED (${LINES_BEFORE} → ${LINES_AFTER})"
+                print_status "Size reduced: $SIZE_REDUCED bytes ($REDUCTION_PERCENT%)"
+            else
+                print_info "No reduction needed - CLAUDE.md is already optimized"
+            fi
+            
+            # Log metrics
+            echo "$(date '+%Y-%m-%d %H:%M:%S')|$LINES_BEFORE|$LINES_AFTER|$SIZE_BEFORE|$SIZE_AFTER|$TODOS_COMPLETED" >> "$AUDIT_LOG"
+        fi
+    fi
+}
+
+# Main execution
+print_header "🛑 SESSION END AUDIT HOOK"
+
+if check_session_end; then
+    print_info "Initiating CLAUDE.md audit process"
+    
+    # Create backup directory if it doesn't exist
+    mkdir -p "$PROJECT_DIR/.claude/backups"
+    
+    # Collect pre-audit metrics
+    collect_metrics
+    
+    # Backup current CLAUDE.md
+    if backup_claude_md; then
+        # Get git session summary
+        get_git_session_summary
+        
+        # Create audit request file for Claude to process
+        print_header "📝 Creating Audit Request"
+        
+        cat > "$PROJECT_DIR/.claude/.audit-request" << 'EOF'
+Please audit the CLAUDE.md file:
+
+1. **Review Current Content**:
+   - Identify completed development phases
+   - Find outdated technical decisions
+   - Locate verbose explanations that can be summarized
+   - Find implementation details now in code
+
+2. **Archive Completed Items**:
+   - Move completed phases to CLAUDE_ARCHIVE.md with timestamps
+   - Include completion notes and outcomes
+   - Preserve important decisions for reference
+
+3. **Optimize CLAUDE.md**:
+   - Keep only current development priorities
+   - Maintain active architectural decisions
+   - Preserve essential project context
+   - Update next steps and TODOs
+   - Ensure file stays under 100 lines if possible
+
+4. **Update Status**:
+   - Mark completed items with ✅
+   - Remove or archive stale TODOs
+   - Update phase/milestone progress
+
+5. **Session Summary**:
+   - Note major accomplishments from this session
+   - Flag any unresolved issues
+EOF
+        
+        if [ -f "$PROJECT_DIR/.claude/.audit-request" ]; then
+            print_status "Audit request created successfully"
+            print_info "Claude will process the audit on next interaction"
+            
+            # Auto-commit changes if enabled
+            auto_commit_changes
+            
+            # Clean up session file
+            if [ -f "$SESSION_FILE" ]; then
+                mv "$SESSION_FILE" "$PROJECT_DIR/.claude/.last-session"
+                print_info "Session info archived to .last-session"
+            fi
+            
+            print_header "✅ AUDIT PREPARATION COMPLETE"
+            
+            if [ "$ERRORS" -gt 0 ]; then
+                print_error "Completed with $ERRORS errors"
+            elif [ "$WARNINGS" -gt 0 ]; then
+                print_warning "Completed with $WARNINGS warnings"
+            else
+                print_status "All audit preparations successful!"
+            fi
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        else
+            print_error "Failed to create audit request"
+        fi
+    else
+        print_error "Backup failed - audit aborted for safety"
+    fi
+else
+    # Not a session end - do nothing
+    :
+fi
