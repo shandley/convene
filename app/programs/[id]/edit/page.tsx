@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth/context'
 import { useForm } from 'react-hook-form'
@@ -12,9 +12,13 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ChevronLeft } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
+import { ChevronLeft, FileText, Settings, Eye, Save } from 'lucide-react'
 import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
+import type { ApplicationQuestionWithRelations } from '@/types/questions'
+import { ApplicationFormPreview } from '@/components/programs/ApplicationFormPreview'
 
 const editProgramSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -42,6 +46,10 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
   const [programLoading, setProgramLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string>('')
+  const [questions, setQuestions] = useState<ApplicationQuestionWithRelations[]>([])
+  const [questionsLoading, setQuestionsLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('details')
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const router = useRouter()
   const [id, setId] = useState<string>('')
 
@@ -49,6 +57,9 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
     resolver: zodResolver(editProgramSchema),
     mode: 'onBlur',
   })
+
+  // Watch form values to detect changes
+  const watchedValues = form.watch()
 
   // Unwrap params
   useEffect(() => {
@@ -100,10 +111,48 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
         blind_review: data.program.blind_review || false,
         status: data.program.status || 'draft',
       })
+      setHasUnsavedChanges(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setProgramLoading(false)
+    }
+  }
+
+  const fetchQuestions = useCallback(async () => {
+    if (!id || activeTab !== 'questions') return
+    
+    try {
+      setQuestionsLoading(true)
+      const response = await fetch(`/api/programs/${id}/questions`)
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push('/auth/login')
+          return
+        }
+        throw new Error('Failed to fetch questions')
+      }
+      
+      const data = await response.json()
+      setQuestions(data.questions || [])
+    } catch (err) {
+      console.error('Error fetching questions:', err)
+      // Don't set error state here as it's not critical for the main functionality
+    } finally {
+      setQuestionsLoading(false)
+    }
+  }, [id, activeTab, router])
+
+  const handleQuestionsChange = useCallback((updatedQuestions: ApplicationQuestionWithRelations[]) => {
+    setQuestions(updatedQuestions)
+    setHasUnsavedChanges(true)
+  }, [])
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    if (value === 'questions' && questions.length === 0) {
+      fetchQuestions()
     }
   }
 
@@ -131,6 +180,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       }
 
       const { program } = await response.json()
+      setHasUnsavedChanges(false)
       router.push(`/programs/${program.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred')
@@ -138,6 +188,20 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       setIsSubmitting(false)
     }
   }
+
+  // Effect to fetch questions when tab becomes active
+  useEffect(() => {
+    if (activeTab === 'questions') {
+      fetchQuestions()
+    }
+  }, [activeTab, fetchQuestions])
+
+  // Effect to detect form changes
+  useEffect(() => {
+    if (program && form.formState.isDirty) {
+      setHasUnsavedChanges(true)
+    }
+  }, [watchedValues, program, form.formState.isDirty])
 
   if (loading || programLoading) {
     return (
@@ -169,7 +233,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-4xl mx-auto py-8">
+      <div className="container max-w-7xl mx-auto py-8">
         <div className="mb-8">
           <Link href={`/programs/${id}`}>
             <Button variant="ghost" className="mb-4">
@@ -177,7 +241,15 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
               Back to Program
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold">Edit Program</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Edit Program</h1>
+            {hasUnsavedChanges && (
+              <div className="flex items-center gap-2 text-amber-600">
+                <Save className="h-4 w-4" />
+                <span className="text-sm font-medium">You have unsaved changes</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -186,12 +258,34 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
           </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Program Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="details" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Details
+            </TabsTrigger>
+            <TabsTrigger value="questions" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Questions
+              {questions.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 text-xs">
+                  {questions.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="preview" className="flex items-center gap-2">
+              <Eye className="h-4 w-4" />
+              Preview
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Program Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div>
                 <Label htmlFor="title">Program Title *</Label>
                 <Input
@@ -363,6 +457,36 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
             </form>
           </CardContent>
         </Card>
+      </TabsContent>
+
+      <TabsContent value="questions" className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Application Questions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-8">
+              <FileText className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Question Builder</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Manage questions that applicants will answer when applying to this program.
+              </p>
+              <p className="text-xs text-gray-500">
+                {questionsLoading ? 'Loading questions...' : `${questions.length} questions configured`}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="preview" className="mt-6">
+        <ApplicationFormPreview
+          program={program}
+          questions={questions}
+          isLoading={questionsLoading}
+        />
+      </TabsContent>
+    </Tabs>
       </div>
     </div>
   )
