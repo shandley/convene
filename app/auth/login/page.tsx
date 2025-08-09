@@ -22,6 +22,7 @@ type LoginForm = z.infer<typeof loginSchema>
 function LoginFormWithSearchParams() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>('')
+  const [message, setMessage] = useState<string>('')
   const { signIn } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -34,17 +35,22 @@ function LoginFormWithSearchParams() {
     resolver: zodResolver(loginSchema),
   })
 
-  // Check for error from URL parameters (e.g., from auth callback)
+  // Check for error or message from URL parameters (e.g., from auth callback)
   useEffect(() => {
     const urlError = searchParams.get('error')
+    const urlMessage = searchParams.get('message')
     if (urlError) {
       setError(decodeURIComponent(urlError))
+    }
+    if (urlMessage) {
+      setMessage(decodeURIComponent(urlMessage))
     }
   }, [searchParams])
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true)
     setError('')
+    setMessage('')
 
     try {
       const { error: signInError } = await signIn(data.email, data.password)
@@ -72,6 +78,11 @@ function LoginFormWithSearchParams() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {message && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+                  {message}
+                </div>
+              )}
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                   {error}

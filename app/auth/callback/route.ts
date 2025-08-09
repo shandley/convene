@@ -46,6 +46,11 @@ export async function GET(request: Request) {
       })
       
       if (!error && data?.user) {
+        // For email confirmation, redirect to login with success message
+        if (type === 'signup' || type === 'email') {
+          return NextResponse.redirect(`${origin}/auth/login?message=${encodeURIComponent('Email confirmed! Please sign in to continue.')}`)
+        }
+        // For other auth flows, redirect to intended destination
         const redirectUrl = `${origin}${next}`
         console.log('PKCE: Redirecting to:', redirectUrl)
         return NextResponse.redirect(redirectUrl)
