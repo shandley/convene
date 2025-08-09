@@ -25,7 +25,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, MoreVertical, Archive, Trash2, Edit } from 'lucide-react'
+import { ChevronLeft, MoreVertical, Archive, Trash2, Edit, FileText, Users } from 'lucide-react'
 import type { Tables } from '@/types/database.types'
 
 type ProgramWithDetails = Tables<'programs'> & {
@@ -385,6 +385,32 @@ export default function ProgramDetailsPage({ params }: ProgramDetailsPageProps) 
                 </div>
               </CardContent>
             </Card>
+
+            {/* Only show management actions if user is the creator */}
+            {user && program.created_by === user.id && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manage Program</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <Link href={`/programs/${program.id}/questions`} className="block">
+                      <Button variant="outline" className="w-full justify-start gap-3">
+                        <FileText className="h-4 w-4" />
+                        Questions & Categories
+                      </Button>
+                    </Link>
+                    <Button variant="outline" className="w-full justify-start gap-3" disabled>
+                      <Users className="h-4 w-4" />
+                      Applications
+                      <Badge variant="secondary" className="ml-auto text-xs">
+                        Coming Soon
+                      </Badge>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>

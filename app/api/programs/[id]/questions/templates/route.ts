@@ -71,17 +71,22 @@ export async function GET(
     const tags = searchParams.get('tags')
     const includePrivate = searchParams.get('include_private') === 'true'
 
-    // TODO: Implement template search once question_templates table is added to TypeScript types
-    // For now, return empty array as the table doesn't exist in the types
-    const templates: any[] = []
-    const error = null
+    // Use the search_question_templates RPC function
+    const { data: templates, error } = await supabase.rpc('search_question_templates', {
+      search_text: search || null,
+      category_filter: category as any || null,
+      type_filter: questionType as any || null,
+      tag_filter: tags || null,
+      include_private: includePrivate,
+      created_by_filter: null // Allow all creators for now
+    })
 
     if (error) {
       console.error('Error fetching templates:', error)
       return NextResponse.json({ error: 'Failed to fetch templates' }, { status: 500 })
     }
 
-    return NextResponse.json({ templates })
+    return NextResponse.json({ templates: templates || [] })
   } catch (error) {
     console.error('Templates GET error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -144,16 +149,103 @@ export async function POST(
     const createdQuestions: any[] = []
     const errors: Array<{ template_id: string; error: string }> = []
 
-    // TODO: Implement template-based question creation once question_templates table is added to TypeScript types
-    // For now, skip template processing
-    // The template creation logic will be restored once database types are regenerated
-    
     // Process each template
     for (const templateConfig of templates) {
-      errors.push({
-        template_id: templateConfig.template_id,
-        error: 'Template functionality not yet available'
-      })
+      try {
+        // Use the create_question_from_template RPC function
+        const { data: questionId, error: createError } = await supabase.rpc('create_question_from_template', {
+          p_program_id: programId,
+          p_template_id: templateConfig.template_id,
+          p_category_id: templateConfig.category_id || null,
+          p_order_index: templateConfig.order_index || null,
+          p_required: templateConfig.required !== undefined ? templateConfig.required : null
+        })
+
+        if (createError) {
+          errors.push({
+            template_id: templateConfig.template_id,
+            error: createError.message || 'Failed to create question from template'
+          })
+          continue
+        }
+
+        if (!questionId) {
+          errors.push({
+            template_id: templateConfig.template_id,
+            error: 'No question ID returned from template creation'
+          })
+          continue
+        }
+
+        // Fetch the complete question data with relations
+        const { data: question, error: fetchError } = await supabase
+          .from('application_questions')
+          .select(`
+            *,
+            category:question_categories(id, title, order_index),
+            template:question_templates(id, title)
+          `)
+          .eq('id', questionId)
+          .single()
+
+        if (fetchError || !question) {
+          errors.push({
+            template_id: templateConfig.template_id,
+            error: 'Failed to fetch created question data'
+          })
+          continue
+        }
+
+        // Apply any customizations if provided
+        if (templateConfig.customizations) {
+          const updates: any = {}
+          const customizations = templateConfig.customizations
+
+          if (customizations.question_text) updates.question_text = customizations.question_text
+          if (customizations.help_text) updates.help_text = customizations.help_text
+          if (customizations.placeholder) updates.placeholder = customizations.placeholder
+          if (customizations.options) updates.options = customizations.options
+          if (customizations.validation_rules) updates.validation_rules = customizations.validation_rules
+
+          if (Object.keys(updates).length > 0) {
+            const { data: updatedQuestion, error: updateError } = await supabase
+              .from('application_questions')
+              .update(updates)
+              .eq('id', questionId)
+              .select(`
+                *,
+                category:question_categories(id, title, order_index),
+                template:question_templates(id, title)
+              `)
+              .single()
+
+            if (updateError) {
+              errors.push({
+                template_id: templateConfig.template_id,
+                error: 'Question created but failed to apply customizations'
+              })
+            } else if (updatedQuestion) {
+              createdQuestions.push(updatedQuestion)
+            }
+          } else {
+            createdQuestions.push(question)
+          }
+        } else {
+          createdQuestions.push(question)
+        }
+
+        // Track template usage (increment usage_count)
+        await supabase
+          .from('question_templates')
+          .update({ usage_count: supabase.raw('usage_count + 1') })
+          .eq('id', templateConfig.template_id)
+      } catch (templateError) {
+        console.error(`Error processing template ${templateConfig.template_id}:`, templateError)
+        errors.push({
+          template_id: templateConfig.template_id,
+          error: templateError instanceof Error ? templateError.message : 'Unknown error occurred'
+        })
+      }
     }
 
     // Return results

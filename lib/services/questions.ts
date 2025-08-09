@@ -290,7 +290,7 @@ export class QuestionsService {
 
     questions.forEach(question => {
       if (question.category_id && question.category) {
-        const categoryName = question.category.name
+        const categoryName = question.category.title
         if (!categorized[categoryName]) {
           categorized[categoryName] = []
         }
@@ -356,7 +356,7 @@ export class QuestionsService {
       stats.by_type[question.question_type] = (stats.by_type[question.question_type] || 0) + 1
       
       // Count by category
-      const categoryName = question.category?.name || 'Uncategorized'
+      const categoryName = question.category?.title || 'Uncategorized'
       stats.by_category[categoryName] = (stats.by_category[categoryName] || 0) + 1
       
       // Count required/optional

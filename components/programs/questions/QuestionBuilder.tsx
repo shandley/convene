@@ -59,6 +59,7 @@ import type {
   QuestionType, 
   QuestionCategoryType 
 } from '@/types/questions'
+import { QuestionsService } from '@/lib/services/questions'
 import { QuestionForm } from './QuestionForm'
 import { QuestionTemplateModal } from './QuestionTemplateModal'
 import { QuestionPreview } from './QuestionPreview'
@@ -112,9 +113,10 @@ interface SortableQuestionItemProps {
   onEdit: (question: ApplicationQuestionWithRelations) => void
   onDelete: (questionId: string) => void
   onPreview: (question: ApplicationQuestionWithRelations) => void
+  isDeleting?: boolean
 }
 
-function SortableQuestionItem({ question, onEdit, onDelete, onPreview }: SortableQuestionItemProps) {
+function SortableQuestionItem({ question, onEdit, onDelete, onPreview, isDeleting = false }: SortableQuestionItemProps) {
   const {
     attributes,
     listeners,
@@ -138,7 +140,7 @@ function SortableQuestionItem({ question, onEdit, onDelete, onPreview }: Sortabl
       style={style}
       className={`transition-all duration-200 hover:shadow-md ${
         isDragging ? 'opacity-50 shadow-lg scale-105' : ''
-      }`}
+      } ${isDeleting ? 'opacity-50' : ''}`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start gap-3">
@@ -185,7 +187,7 @@ function SortableQuestionItem({ question, onEdit, onDelete, onPreview }: Sortabl
             {question.category && (
               <div className="flex items-center gap-1 mt-2">
                 <Badge variant="outline" className="text-xs">
-                  {question.category.name}
+                  {question.category.title}
                 </Badge>
               </div>
             )}
@@ -221,10 +223,14 @@ function SortableQuestionItem({ question, onEdit, onDelete, onPreview }: Sortabl
                 <DropdownMenuItem 
                   onClick={() => onDelete(question.id)}
                   className="text-destructive focus:text-destructive"
-                  disabled={false /* TODO: Use question.is_system_question once field is added */}
+                  disabled={isDeleting /* TODO: Also use question.is_system_question once field is added */}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {isDeleting ? (
+                    <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  {isDeleting ? 'Deleting...' : 'Delete'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -247,6 +253,10 @@ export function QuestionBuilder({
   const [previewQuestion, setPreviewQuestion] = useState<ApplicationQuestionWithRelations | null>(null)
   const [showNewQuestionForm, setShowNewQuestionForm] = useState(false)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [isReordering, setIsReordering] = useState(false)
+
+  const questionsService = new QuestionsService()
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -259,10 +269,10 @@ export function QuestionBuilder({
   const filteredQuestions = questions.filter(question => {
     const matchesSearch = question.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          question.help_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         question.category?.name.toLowerCase().includes(searchTerm.toLowerCase())
+                         question.category?.title.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesCategory = selectedCategory === 'all' || 
-                           question.category?.name.toLowerCase().includes(selectedCategory)
+                           question.category?.title.toLowerCase().includes(selectedCategory)
     
     return matchesSearch && matchesCategory
   })
@@ -278,7 +288,7 @@ export function QuestionBuilder({
     { value: 'custom', label: 'Custom' },
   ]
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
 
     if (active.id !== over?.id) {
@@ -290,7 +300,27 @@ export function QuestionBuilder({
         order_index: index
       }))
       
+      // Optimistic update
       onQuestionsChange(reorderedQuestions)
+      
+      try {
+        setIsReordering(true)
+        // Update order on server
+        const reorderData = reorderedQuestions.map((q, index) => ({
+          id: q.id,
+          order_index: index,
+          category_id: q.category_id
+        }))
+        
+        await questionsService.reorderQuestions(programId, { questions: reorderData })
+      } catch (error) {
+        console.error('Failed to reorder questions:', error)
+        // Revert on error
+        onQuestionsChange(questions)
+        // TODO: Show error toast
+      } finally {
+        setIsReordering(false)
+      }
     }
   }
 
@@ -299,9 +329,24 @@ export function QuestionBuilder({
     setShowNewQuestionForm(true)
   }
 
-  const handleDeleteQuestion = (questionId: string) => {
-    const updatedQuestions = questions.filter(q => q.id !== questionId)
-    onQuestionsChange(updatedQuestions)
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setIsDeleting(questionId)
+      await questionsService.deleteQuestion(programId, questionId)
+      
+      // Remove from local state
+      const updatedQuestions = questions.filter(q => q.id !== questionId)
+      onQuestionsChange(updatedQuestions)
+    } catch (error) {
+      console.error('Failed to delete question:', error)
+      // TODO: Show error toast
+    } finally {
+      setIsDeleting(null)
+    }
   }
 
   const handleQuestionSaved = (savedQuestion: ApplicationQuestionWithRelations) => {
@@ -467,6 +512,7 @@ export function QuestionBuilder({
                   onEdit={handleEditQuestion}
                   onDelete={handleDeleteQuestion}
                   onPreview={setPreviewQuestion}
+                  isDeleting={isDeleting === question.id}
                 />
               ))}
             </div>

@@ -52,8 +52,17 @@ export interface ApplicationQuestion {
 
 export interface QuestionCategory {
   id: string
-  name: string
+  title: string
   order_index: number
+  description?: string | null
+  program_id: string
+  category_type: QuestionCategoryType
+  is_visible: boolean
+  instructions?: string | null
+  required_questions_count?: number | null
+  show_condition?: Json | null
+  created_at: string
+  updated_at: string | null
 }
 
 export interface QuestionTemplate {
