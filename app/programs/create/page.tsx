@@ -28,10 +28,18 @@ const programSchema = z.object({
   location: z.string().min(1, "Location is required"),
   fee: z.number().optional(),
   blind_review: z.boolean().optional(),
-}).refine((data) => new Date(data.start_date) < new Date(data.end_date), {
+}).refine((data) => {
+  const startDate = new Date(data.start_date);
+  const endDate = new Date(data.end_date);
+  return !isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && startDate < endDate;
+}, {
   message: "Start date must be before end date",
   path: ["end_date"],
-}).refine((data) => new Date(data.application_deadline) < new Date(data.start_date), {
+}).refine((data) => {
+  const appDeadline = new Date(data.application_deadline);
+  const startDate = new Date(data.start_date);
+  return !isNaN(appDeadline.getTime()) && !isNaN(startDate.getTime()) && appDeadline < startDate;
+}, {
   message: "Application deadline must be before start date",
   path: ["application_deadline"],
 });
@@ -48,7 +56,8 @@ export default function CreateProgramPage() {
 
   const form = useForm<ProgramForm>({
     resolver: zodResolver(programSchema),
-    mode: "onChange", // Validate on change to enable/disable button properly
+    mode: "onBlur", // Validate on blur for better UX
+    reValidateMode: "onChange", // Re-validate on change after first validation
     defaultValues: {
       title: "",
       description: "",
@@ -69,6 +78,15 @@ export default function CreateProgramPage() {
       form.trigger(); // Validate all fields when on review step
     }
   }, [currentStep, form]);
+
+  // Debug log form state
+  useEffect(() => {
+    console.log("Form state:", {
+      errors: form.formState.errors,
+      isValid: form.formState.isValid,
+      values: form.getValues(),
+    });
+  }, [form.formState.errors, form.formState.isValid]);
 
   const handleNext = async () => {
     // Validate current step fields before proceeding
@@ -114,6 +132,9 @@ export default function CreateProgramPage() {
     setError("");
 
     try {
+      // Debug log the data being submitted
+      console.log("Submitting program data:", data);
+      
       const response = await fetch("/api/programs", {
         method: "POST",
         headers: {
@@ -124,12 +145,15 @@ export default function CreateProgramPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("API Error:", errorData);
         throw new Error(errorData.error || "Failed to create program");
       }
 
       const { program } = await response.json();
+      console.log("Program created successfully:", program);
       router.push(`/programs/${program.id}`);
     } catch (err) {
+      console.error("Submit error:", err);
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
@@ -226,7 +250,7 @@ export default function CreateProgramPage() {
                   placeholder="e.g., Advanced Machine Learning Workshop"
                   className="mt-1"
                 />
-                {form.formState.errors.title && (
+                {form.formState.errors.title?.message && (
                   <p className="text-sm text-red-600 mt-1">{form.formState.errors.title.message}</p>
                 )}
               </div>
@@ -238,7 +262,7 @@ export default function CreateProgramPage() {
                   placeholder="Provide a detailed description of your program..."
                   className="mt-1 min-h-[120px]"
                 />
-                {form.formState.errors.description && (
+                {form.formState.errors.description?.message && (
                   <p className="text-sm text-red-600 mt-1">{form.formState.errors.description.message}</p>
                 )}
               </div>
@@ -259,7 +283,7 @@ export default function CreateProgramPage() {
                     <SelectItem value="course">Course</SelectItem>
                   </SelectContent>
                 </Select>
-                {form.formState.errors.type && (
+                {form.formState.errors.type?.message && (
                   <p className="text-sm text-red-600 mt-1">{form.formState.errors.type.message}</p>
                 )}
               </div>
@@ -286,7 +310,7 @@ export default function CreateProgramPage() {
                     {...form.register("start_date")}
                     className="mt-1"
                   />
-                  {form.formState.errors.start_date && (
+                  {form.formState.errors.start_date?.message && (
                     <p className="text-sm text-red-600 mt-1">{form.formState.errors.start_date.message}</p>
                   )}
                 </div>
@@ -298,7 +322,7 @@ export default function CreateProgramPage() {
                     {...form.register("end_date")}
                     className="mt-1"
                   />
-                  {form.formState.errors.end_date && (
+                  {form.formState.errors.end_date?.message && (
                     <p className="text-sm text-red-600 mt-1">{form.formState.errors.end_date.message}</p>
                   )}
                 </div>
@@ -311,7 +335,7 @@ export default function CreateProgramPage() {
                   {...form.register("application_deadline")}
                   className="mt-1"
                 />
-                {form.formState.errors.application_deadline && (
+                {form.formState.errors.application_deadline?.message && (
                   <p className="text-sm text-red-600 mt-1">{form.formState.errors.application_deadline.message}</p>
                 )}
               </div>
@@ -320,11 +344,14 @@ export default function CreateProgramPage() {
                 <Input
                   id="capacity"
                   type="number"
-                  {...form.register("capacity", { valueAsNumber: true })}
+                  {...form.register("capacity", { 
+                    valueAsNumber: true,
+                    setValueAs: (value) => value === '' ? 0 : Number(value)
+                  })}
                   placeholder="e.g., 30"
                   className="mt-1"
                 />
-                {form.formState.errors.capacity && (
+                {form.formState.errors.capacity?.message && (
                   <p className="text-sm text-red-600 mt-1">{form.formState.errors.capacity.message}</p>
                 )}
                 <p className="text-sm text-muted-foreground mt-1">
@@ -353,7 +380,7 @@ export default function CreateProgramPage() {
                   placeholder="e.g., Stanford University, Palo Alto, CA"
                   className="mt-1"
                 />
-                {form.formState.errors.location && (
+                {form.formState.errors.location?.message && (
                   <p className="text-sm text-red-600 mt-1">{form.formState.errors.location.message}</p>
                 )}
               </div>
@@ -362,11 +389,15 @@ export default function CreateProgramPage() {
                 <Input
                   id="fee"
                   type="number"
-                  {...form.register("fee", { valueAsNumber: true })}
+                  step="0.01"
+                  {...form.register("fee", { 
+                    valueAsNumber: true,
+                    setValueAs: (value) => value === '' ? undefined : Number(value)
+                  })}
                   placeholder="0.00"
                   className="mt-1"
                 />
-                {form.formState.errors.fee && (
+                {form.formState.errors.fee?.message && (
                   <p className="text-sm text-red-600 mt-1">{form.formState.errors.fee.message}</p>
                 )}
                 <p className="text-sm text-muted-foreground mt-1">
@@ -479,13 +510,36 @@ export default function CreateProgramPage() {
             {renderStepIndicator()}
             {renderStepContent()}
             
+            {/* Debug panel (remove in production) */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Debug Info</h3>
+                <div className="text-xs space-y-1">
+                  <div>Form Valid: {form.formState.isValid ? 'Yes' : 'No'}</div>
+                  <div>Error Count: {Object.keys(form.formState.errors).length}</div>
+                  {Object.entries(form.formState.errors).map(([field, error]) => (
+                    <div key={field} className="text-red-600">
+                      {field}: {error?.message || 'Unknown error'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {/* Show validation message on review step if form is incomplete */}
-            {currentStep === TOTAL_STEPS && !form.formState.isValid && (
+            {currentStep === TOTAL_STEPS && Object.keys(form.formState.errors).length > 0 && (
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                 <p className="text-sm text-yellow-800">
                   Please go back and fill in all required fields before creating the program.
-                  Missing: {Object.keys(form.formState.errors).join(", ")}
+                  Issues with: {Object.keys(form.formState.errors).join(", ")}
                 </p>
+                <div className="mt-2 text-xs text-yellow-700">
+                  {Object.entries(form.formState.errors).map(([field, error]) => (
+                    <div key={field}>
+                      {field}: {error?.message || "Invalid value"}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             
@@ -500,7 +554,7 @@ export default function CreateProgramPage() {
               {currentStep === TOTAL_STEPS ? (
                 <Button 
                   onClick={form.handleSubmit(onSubmit)} 
-                  disabled={isSubmitting || !form.formState.isValid}
+                  disabled={isSubmitting || Object.keys(form.formState.errors).length > 0}
                 >
                   {isSubmitting ? "Creating..." : "Create Program"}
                 </Button>
