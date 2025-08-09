@@ -262,27 +262,29 @@ export async function DELETE(
       )
     }
 
-    // Check if question has responses (applications submitted)
-    const { data: responses, error: responsesError } = await supabase
-      .from('application_responses')
-      .select('id')
-      .eq('question_id', questionId)
-      .limit(1)
+    // TODO: Check if question has responses once application_responses table is added
+    // For now, allow deletion of all questions since applications aren't implemented yet
+    
+    // const { data: responses, error: responsesError } = await supabase
+    //   .from('application_responses')
+    //   .select('id')
+    //   .eq('question_id', questionId)
+    //   .limit(1)
 
-    if (responsesError) {
-      console.error('Error checking question responses:', responsesError)
-      return NextResponse.json(
-        { error: 'Failed to verify question usage' }, 
-        { status: 500 }
-      )
-    }
+    // if (responsesError) {
+    //   console.error('Error checking question responses:', responsesError)
+    //   return NextResponse.json(
+    //     { error: 'Failed to verify question usage' }, 
+    //     { status: 500 }
+    //   )
+    // }
 
-    if (responses && responses.length > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete question that has been answered by applicants' }, 
-        { status: 400 }
-      )
-    }
+    // if (responses && responses.length > 0) {
+    //   return NextResponse.json(
+    //     { error: 'Cannot delete question that has been answered by applicants' }, 
+    //     { status: 400 }
+    //   )
+    // }
 
     const { error } = await supabase
       .from('application_questions')
