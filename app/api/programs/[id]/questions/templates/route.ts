@@ -71,16 +71,26 @@ export async function GET(
     const tags = searchParams.get('tags')
     const includePrivate = searchParams.get('include_private') === 'true'
 
-    // Use the search function from the database
-    const { data: templates, error } = await supabase
-      .rpc('search_question_templates', {
-        search_text: search,
-        category_filter: category,
-        type_filter: questionType,
-        tag_filter: tags,
-        include_private: includePrivate,
-        created_by_filter: null,
-      })
+    // TODO: Use the search function from the database once TypeScript types are regenerated
+    // For now, use basic query
+    let query = supabase
+      .from('question_templates')
+      .select('*')
+      .eq('is_public', true)
+    
+    if (category) {
+      query = query.eq('category', category)
+    }
+    if (questionType) {
+      query = query.eq('question_type', questionType)
+    }
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,question_text.ilike.%${search}%`)
+    }
+    
+    const { data: templates, error } = await query
+      .order('usage_count', { ascending: false })
+      .limit(50)
 
     if (error) {
       console.error('Error fetching templates:', error)
