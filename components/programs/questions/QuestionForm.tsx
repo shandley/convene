@@ -121,7 +121,7 @@ export function QuestionForm({ programId, question, onSave, onCancel }: Question
       placeholder: question?.placeholder || '',
       required: question?.required ?? true,
       max_length: question?.max_length || undefined,
-      options: (question?.options as SelectOption[]) || [],
+      options: (question?.options as unknown as SelectOption[]) || [],
       allowed_file_types: question?.allowed_file_types || [],
       max_file_size_mb: question?.max_file_size_mb || 10,
       max_files: question?.max_files || 1,

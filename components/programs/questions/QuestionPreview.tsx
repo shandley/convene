@@ -72,7 +72,7 @@ export function QuestionPreview({ question }: QuestionPreviewProps) {
   const [showOther, setShowOther] = useState(false)
 
   const Icon = getQuestionTypeIcon(question.question_type)
-  const options = (question.options as SelectOption[]) || []
+  const options = (question.options as unknown as SelectOption[]) || []
   const hasOtherOption = question.allow_other && ['select', 'multi_select'].includes(question.question_type)
 
   const renderQuestionInput = () => {
@@ -192,7 +192,7 @@ export function QuestionPreview({ question }: QuestionPreviewProps) {
                   <Checkbox
                     id="multi-other"
                     checked={showOther}
-                    onCheckedChange={setShowOther}
+                    onCheckedChange={(checked) => setShowOther(checked === true)}
                   />
                   <Label htmlFor="multi-other" className="text-sm font-normal cursor-pointer">
                     Other (please specify)
@@ -379,20 +379,20 @@ export function QuestionPreview({ question }: QuestionPreviewProps) {
             <div className="text-xs text-gray-500 space-y-1">
               <p className="font-medium">Validation:</p>
               <ul className="list-disc list-inside space-y-1 ml-2">
-                {question.validation_rules.min_length && (
-                  <li>Minimum {question.validation_rules.min_length} characters</li>
+                {(question.validation_rules as any)?.min_length && (
+                  <li>Minimum {(question.validation_rules as any).min_length} characters</li>
                 )}
-                {question.validation_rules.max_length && (
-                  <li>Maximum {question.validation_rules.max_length} characters</li>
+                {(question.validation_rules as any)?.max_length && (
+                  <li>Maximum {(question.validation_rules as any).max_length} characters</li>
                 )}
-                {question.validation_rules.min && (
-                  <li>Minimum value: {question.validation_rules.min}</li>
+                {(question.validation_rules as any)?.min && (
+                  <li>Minimum value: {(question.validation_rules as any).min}</li>
                 )}
-                {question.validation_rules.max && (
-                  <li>Maximum value: {question.validation_rules.max}</li>
+                {(question.validation_rules as any)?.max && (
+                  <li>Maximum value: {(question.validation_rules as any).max}</li>
                 )}
-                {question.validation_rules.regex && (
-                  <li>Must match pattern: {question.validation_rules.regex}</li>
+                {(question.validation_rules as any)?.regex && (
+                  <li>Must match pattern: {(question.validation_rules as any).regex}</li>
                 )}
               </ul>
             </div>
