@@ -69,11 +69,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     })
-    return { error: error?.message }
+
+    // Provide better error messages for common issues
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        return { error: 'Invalid email or password. Please check your credentials and try again.' }
+      }
+      
+      if (error.message.includes('Email not confirmed')) {
+        return { error: 'Please check your email and click the verification link before signing in.' }
+      }
+      
+      if (error.message.includes('Too many requests')) {
+        return { error: 'Too many login attempts. Please wait a moment before trying again.' }
+      }
+      
+      return { error: error.message }
+    }
+    
+    return { error: undefined }
   }
 
   const signUp = async (email: string, password: string, metadata?: { full_name?: string }) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -81,7 +99,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
       },
     })
-    return { error: error?.message }
+
+    // Handle specific error cases
+    if (error) {
+      // Check for existing user error
+      if (error.message.includes('User already registered')) {
+        return { error: 'This email is already registered. Please sign in instead.' }
+      }
+      
+      // Check for email validation errors
+      if (error.message.includes('invalid email')) {
+        return { error: 'Please enter a valid email address.' }
+      }
+      
+      // Check for password strength errors
+      if (error.message.includes('Password')) {
+        return { error: 'Password must be at least 6 characters long.' }
+      }
+
+      return { error: error.message }
+    }
+
+    // If no error but no user created, it means email already exists
+    // Supabase sometimes doesn't send an error for existing users for security
+    if (!data.user && !error) {
+      return { error: 'This email is already registered. Please sign in instead.' }
+    }
+
+    return { error: undefined }
   }
 
   const signOut = async () => {

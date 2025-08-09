@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth/context'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -19,11 +19,12 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-export default function LoginPage() {
+function LoginFormWithSearchParams() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const { signIn } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const {
     register,
@@ -32,6 +33,14 @@ export default function LoginPage() {
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   })
+
+  // Check for error from URL parameters (e.g., from auth callback)
+  useEffect(() => {
+    const urlError = searchParams.get('error')
+    if (urlError) {
+      setError(decodeURIComponent(urlError))
+    }
+  }, [searchParams])
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true)
@@ -54,26 +63,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Sign in to Convene
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Access your workshop administration dashboard
-          </p>
-        </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>
-              Enter your email and password to access your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <Card>
+      <CardHeader>
+        <CardTitle>Sign In</CardTitle>
+        <CardDescription>
+          Enter your email and password to access your account
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                   {error}
@@ -111,16 +109,43 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                Don't have an account?{' '}
-                <Link href="/auth/signup" className="font-medium text-blue-600 hover:text-blue-500">
-                  Sign up
-                </Link>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link href="/auth/signup" className="font-medium text-blue-600 hover:text-blue-500">
+                Sign up
+              </Link>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            Sign in to Convene
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Access your workshop administration dashboard
+          </p>
+        </div>
+        
+        <Suspense fallback={
+          <Card>
+            <CardContent>
+              <div className="flex items-center justify-center p-8">
+                Loading...
+              </div>
+            </CardContent>
+          </Card>
+        }>
+          <LoginFormWithSearchParams />
+        </Suspense>
       </div>
     </div>
   )

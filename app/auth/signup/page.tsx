@@ -85,12 +85,22 @@ export default function SignupPage() {
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                   {error}
+                  {error.includes('already registered') && (
+                    <div className="mt-2">
+                      <Link href="/auth/login" className="font-medium text-red-800 hover:text-red-900 underline">
+                        Go to sign in page
+                      </Link>
+                    </div>
+                  )}
                 </div>
               )}
               
               {success && (
                 <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
                   {success}
+                  <div className="mt-2 text-sm">
+                    Didn't receive the email? Check your spam folder or try again.
+                  </div>
                 </div>
               )}
               
