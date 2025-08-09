@@ -35,10 +35,13 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Don't redirect API routes or public pages
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/auth') &&
-    request.nextUrl.pathname !== '/'
+    !request.nextUrl.pathname.startsWith('/api') &&
+    request.nextUrl.pathname !== '/' &&
+    !request.nextUrl.pathname.startsWith('/_next')
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()

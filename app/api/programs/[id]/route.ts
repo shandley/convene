@@ -38,13 +38,7 @@ export async function GET(
       .from('programs')
       .select(`
         *,
-        created_by_profile:profiles!programs_created_by_fkey(full_name, email),
-        applications(
-          id,
-          status,
-          submitted_at,
-          applicant:profiles!applications_applicant_id_fkey(full_name, email)
-        )
+        created_by_profile:profiles!programs_created_by_fkey(full_name, email)
       `)
       .eq('id', id)
       .single()

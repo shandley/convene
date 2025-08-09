@@ -15,15 +15,6 @@ type ProgramWithDetails = Tables<'programs'> & {
     full_name: string | null
     email: string
   } | null
-  applications: {
-    id: string
-    status: string | null
-    submitted_at: string | null
-    applicant: {
-      full_name: string | null
-      email: string
-    } | null
-  }[]
 }
 
 interface ProgramDetailsPageProps {
@@ -216,7 +207,7 @@ export default function ProgramDetailsPage({ params }: ProgramDetailsPageProps) 
                   </div>
                   <div>
                     <h4 className="font-semibold mb-1">Applications</h4>
-                    <p className="text-gray-700">{program.applications?.length || 0} submitted</p>
+                    <p className="text-gray-700">0 submitted</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-1">Enrolled</h4>
