@@ -164,11 +164,12 @@ function SortableQuestionItem({ question, onEdit, onDelete, onPreview }: Sortabl
                   Required
                 </Badge>
               )}
+              {/* TODO: Uncomment when is_system_question field is added
               {question.is_system_question && (
                 <Badge variant="outline" className="text-xs">
                   System
                 </Badge>
-              )}
+              )} */}
             </div>
             
             <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100 mb-1 line-clamp-2">
@@ -220,7 +221,7 @@ function SortableQuestionItem({ question, onEdit, onDelete, onPreview }: Sortabl
                 <DropdownMenuItem 
                   onClick={() => onDelete(question.id)}
                   className="text-destructive focus:text-destructive"
-                  disabled={question.is_system_question}
+                  disabled={false /* TODO: Use question.is_system_question once field is added */}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete

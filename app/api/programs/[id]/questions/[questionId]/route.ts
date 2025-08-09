@@ -41,7 +41,6 @@ async function verifyQuestionOwnership(
     .select(`
       id,
       program_id,
-      is_system_question,
       program:programs!inner(created_by)
     `)
     .eq('id', questionId)
@@ -128,13 +127,13 @@ export async function PUT(
       return NextResponse.json({ error: ownership.error }, { status: ownership.status })
     }
 
-    // Check if it's a system question
-    if (ownership.question.is_system_question) {
-      return NextResponse.json(
-        { error: 'System questions cannot be modified' }, 
-        { status: 400 }
-      )
-    }
+    // TODO: Check if it's a system question once is_system_question field is added
+    // if (ownership.question?.is_system_question) {
+    //   return NextResponse.json(
+    //     { error: 'System questions cannot be modified' }, 
+    //     { status: 400 }
+    //   )
+    // }
 
     const body = await request.json()
     
@@ -230,13 +229,13 @@ export async function DELETE(
       return NextResponse.json({ error: ownership.error }, { status: ownership.status })
     }
 
-    // Check if it's a system question
-    if (ownership.question.is_system_question) {
-      return NextResponse.json(
-        { error: 'System questions cannot be deleted' }, 
-        { status: 400 }
-      )
-    }
+    // TODO: Check if it's a system question once is_system_question field is added
+    // if (ownership.question?.is_system_question) {
+    //   return NextResponse.json(
+    //     { error: 'System questions cannot be deleted' }, 
+    //     { status: 400 }
+    //   )
+    // }
 
     // Check if question has dependent questions
     const { data: dependentQuestions, error: dependentError } = await supabase

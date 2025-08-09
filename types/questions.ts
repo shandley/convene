@@ -44,7 +44,7 @@ export interface ApplicationQuestion {
   randomize_options: boolean
   depends_on_question_id: string | null
   show_condition: Json | null
-  is_system_question: boolean
+  is_system_question?: boolean // Optional until field is added to database
   order_index: number
   created_at: string
   updated_at: string | null

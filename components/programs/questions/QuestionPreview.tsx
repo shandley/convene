@@ -334,9 +334,10 @@ export function QuestionPreview({ question }: QuestionPreviewProps) {
               </div>
             )}
             
+            {/* TODO: Uncomment when is_system_question field is added
             {question.is_system_question && (
               <Badge variant="outline">System Question</Badge>
-            )}
+            )} */}
             
             {question.category && (
               <Badge variant="outline">{question.category.name}</Badge>

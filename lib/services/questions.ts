@@ -366,12 +366,14 @@ export class QuestionsService {
         stats.optional_questions++
       }
       
-      // Count system/custom
-      if (question.is_system_question) {
-        stats.system_questions++
-      } else {
-        stats.custom_questions++
-      }
+      // TODO: Count system/custom once is_system_question field is added
+      // if (question.is_system_question) {
+      //   stats.system_questions++
+      // } else {
+      //   stats.custom_questions++
+      // }
+      // For now, count all as custom
+      stats.custom_questions++
     })
 
     return stats

@@ -75,7 +75,7 @@ export async function POST(
     const questionIds = questions.map(q => q.id)
     const { data: existingQuestions, error: verifyError } = await supabase
       .from('application_questions')
-      .select('id, is_system_question')
+      .select('id')
       .eq('program_id', programId)
       .in('id', questionIds)
 
