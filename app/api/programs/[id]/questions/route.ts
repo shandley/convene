@@ -154,11 +154,19 @@ export async function POST(
     // Determine order index if not provided
     let orderIndex = questionData.order_index
     if (orderIndex === undefined) {
-      const { data: maxOrderData } = await supabase
+      let query = supabase
         .from('application_questions')
         .select('order_index')
         .eq('program_id', programId)
-        .eq('category_id', questionData.category_id || null)
+      
+      // Handle category_id which can be null
+      if (questionData.category_id) {
+        query = query.eq('category_id', questionData.category_id)
+      } else {
+        query = query.is('category_id', null)
+      }
+      
+      const { data: maxOrderData } = await query
         .order('order_index', { ascending: false })
         .limit(1)
         .maybeSingle()
