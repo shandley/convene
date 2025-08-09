@@ -169,7 +169,7 @@ export async function DELETE(
 
     // Check if program can be deleted (no applications)
     const { data: canDelete, error: checkError } = await supabase
-      .rpc('can_delete_program', { program_id: id })
+      .rpc('can_delete_program' as any, { program_id: id })
 
     if (checkError) {
       console.error('Error checking delete permission:', checkError)

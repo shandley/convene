@@ -18,7 +18,7 @@ export async function POST(
 
     // Archive the program
     const { error } = await supabase
-      .rpc('archive_program', { program_id: id })
+      .rpc('archive_program' as any, { program_id: id })
 
     if (error) {
       console.error('Error archiving program:', error)
@@ -52,7 +52,7 @@ export async function DELETE(
 
     // Unarchive the program
     const { error } = await supabase
-      .rpc('unarchive_program', { program_id: id })
+      .rpc('unarchive_program' as any, { program_id: id })
 
     if (error) {
       console.error('Error unarchiving program:', error)
