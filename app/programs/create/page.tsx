@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/context";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -12,20 +17,49 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const TOTAL_STEPS = 5;
 
+const programSchema = z.object({
+  title: z.string().min(1, "Program title is required"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  type: z.string().min(1, "Program type is required"),
+  start_date: z.string().min(1, "Start date is required"),
+  end_date: z.string().min(1, "End date is required"),
+  application_deadline: z.string().min(1, "Application deadline is required"),
+  capacity: z.number().min(1, "Capacity must be at least 1"),
+  location: z.string().min(1, "Location is required"),
+  fee: z.number().optional(),
+  blind_review: z.boolean().optional(),
+}).refine((data) => new Date(data.start_date) < new Date(data.end_date), {
+  message: "Start date must be before end date",
+  path: ["end_date"],
+}).refine((data) => new Date(data.application_deadline) < new Date(data.start_date), {
+  message: "Application deadline must be before start date",
+  path: ["application_deadline"],
+});
+
+type ProgramForm = z.infer<typeof programSchema>;
+
 export default function CreateProgramPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [templateType, setTemplateType] = useState("scratch");
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    type: "",
-    startDate: "",
-    endDate: "",
-    applicationDeadline: "",
-    capacity: "",
-    location: "",
-    fee: "",
-    blindReview: false,
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string>("");
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const form = useForm<ProgramForm>({
+    resolver: zodResolver(programSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      type: "",
+      start_date: "",
+      end_date: "",
+      application_deadline: "",
+      capacity: 30,
+      location: "",
+      fee: undefined,
+      blind_review: false,
+    },
   });
 
   const handleNext = () => {
@@ -37,6 +71,38 @@ export default function CreateProgramPage() {
   const handlePrevious = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const onSubmit = async (data: ProgramForm) => {
+    if (!user) {
+      setError("You must be logged in to create a program");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/programs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create program");
+      }
+
+      const { program } = await response.json();
+      router.push(`/programs/${program.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -126,27 +192,31 @@ export default function CreateProgramPage() {
                 <Label htmlFor="title">Program Title *</Label>
                 <Input
                   id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  {...form.register("title")}
                   placeholder="e.g., Advanced Machine Learning Workshop"
                   className="mt-1"
                 />
+                {form.formState.errors.title && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.title.message}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="description">Description *</Label>
                 <Textarea
                   id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  {...form.register("description")}
                   placeholder="Provide a detailed description of your program..."
                   className="mt-1 min-h-[120px]"
                 />
+                {form.formState.errors.description && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.description.message}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="type">Program Type *</Label>
                 <Select
-                  value={formData.type}
-                  onValueChange={(value) => setFormData({ ...formData, type: value })}
+                  value={form.watch("type")}
+                  onValueChange={(value) => form.setValue("type", value)}
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select program type" />
@@ -159,6 +229,9 @@ export default function CreateProgramPage() {
                     <SelectItem value="course">Course</SelectItem>
                   </SelectContent>
                 </Select>
+                {form.formState.errors.type && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.type.message}</p>
+                )}
               </div>
             </div>
           </div>
@@ -176,46 +249,54 @@ export default function CreateProgramPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="startDate">Start Date *</Label>
+                  <Label htmlFor="start_date">Start Date *</Label>
                   <Input
-                    id="startDate"
+                    id="start_date"
                     type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    {...form.register("start_date")}
                     className="mt-1"
                   />
+                  {form.formState.errors.start_date && (
+                    <p className="text-sm text-red-600 mt-1">{form.formState.errors.start_date.message}</p>
+                  )}
                 </div>
                 <div>
-                  <Label htmlFor="endDate">End Date *</Label>
+                  <Label htmlFor="end_date">End Date *</Label>
                   <Input
-                    id="endDate"
+                    id="end_date"
                     type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    {...form.register("end_date")}
                     className="mt-1"
                   />
+                  {form.formState.errors.end_date && (
+                    <p className="text-sm text-red-600 mt-1">{form.formState.errors.end_date.message}</p>
+                  )}
                 </div>
               </div>
               <div>
-                <Label htmlFor="applicationDeadline">Application Deadline *</Label>
+                <Label htmlFor="application_deadline">Application Deadline *</Label>
                 <Input
-                  id="applicationDeadline"
+                  id="application_deadline"
                   type="date"
-                  value={formData.applicationDeadline}
-                  onChange={(e) => setFormData({ ...formData, applicationDeadline: e.target.value })}
+                  {...form.register("application_deadline")}
                   className="mt-1"
                 />
+                {form.formState.errors.application_deadline && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.application_deadline.message}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="capacity">Maximum Participants *</Label>
                 <Input
                   id="capacity"
                   type="number"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                  {...form.register("capacity", { valueAsNumber: true })}
                   placeholder="e.g., 30"
                   className="mt-1"
                 />
+                {form.formState.errors.capacity && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.capacity.message}</p>
+                )}
                 <p className="text-sm text-muted-foreground mt-1">
                   Applicants beyond this limit will be added to the waitlist
                 </p>
@@ -238,22 +319,26 @@ export default function CreateProgramPage() {
                 <Label htmlFor="location">Location *</Label>
                 <Input
                   id="location"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  {...form.register("location")}
                   placeholder="e.g., Stanford University, Palo Alto, CA"
                   className="mt-1"
                 />
+                {form.formState.errors.location && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.location.message}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="fee">Registration Fee</Label>
                 <Input
                   id="fee"
                   type="number"
-                  value={formData.fee}
-                  onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
+                  {...form.register("fee", { valueAsNumber: true })}
                   placeholder="0.00"
                   className="mt-1"
                 />
+                {form.formState.errors.fee && (
+                  <p className="text-sm text-red-600 mt-1">{form.formState.errors.fee.message}</p>
+                )}
                 <p className="text-sm text-muted-foreground mt-1">
                   Leave blank if the program is free
                 </p>
@@ -261,12 +346,11 @@ export default function CreateProgramPage() {
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
-                  id="blindReview"
-                  checked={formData.blindReview}
-                  onChange={(e) => setFormData({ ...formData, blindReview: e.target.checked })}
+                  id="blind_review"
+                  {...form.register("blind_review")}
                   className="rounded border-gray-300"
                 />
-                <Label htmlFor="blindReview">
+                <Label htmlFor="blind_review">
                   Enable blind review (reviewers cannot see applicant names)
                 </Label>
               </div>
@@ -283,44 +367,49 @@ export default function CreateProgramPage() {
                 Review your program details before creating.
               </p>
             </div>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+                {error}
+              </div>
+            )}
             <Card>
               <CardContent className="pt-6">
                 <dl className="space-y-3">
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">Title</dt>
-                    <dd className="text-sm">{formData.title || "Not set"}</dd>
+                    <dd className="text-sm">{form.watch("title") || "Not set"}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">Type</dt>
-                    <dd className="text-sm capitalize">{formData.type || "Not set"}</dd>
+                    <dd className="text-sm capitalize">{form.watch("type") || "Not set"}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">Dates</dt>
                     <dd className="text-sm">
-                      {formData.startDate && formData.endDate
-                        ? `${formData.startDate} to ${formData.endDate}`
+                      {form.watch("start_date") && form.watch("end_date")
+                        ? `${form.watch("start_date")} to ${form.watch("end_date")}`
                         : "Not set"}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">Application Deadline</dt>
-                    <dd className="text-sm">{formData.applicationDeadline || "Not set"}</dd>
+                    <dd className="text-sm">{form.watch("application_deadline") || "Not set"}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">Capacity</dt>
-                    <dd className="text-sm">{formData.capacity ? `${formData.capacity} participants` : "Not set"}</dd>
+                    <dd className="text-sm">{form.watch("capacity") ? `${form.watch("capacity")} participants` : "Not set"}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">Location</dt>
-                    <dd className="text-sm">{formData.location || "Not set"}</dd>
+                    <dd className="text-sm">{form.watch("location") || "Not set"}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">Fee</dt>
-                    <dd className="text-sm">{formData.fee ? `$${formData.fee}` : "Free"}</dd>
+                    <dd className="text-sm">{form.watch("fee") ? `$${form.watch("fee")}` : "Free"}</dd>
                   </div>
                   <div>
                     <dt className="text-sm font-medium text-muted-foreground">Blind Review</dt>
-                    <dd className="text-sm">{formData.blindReview ? "Enabled" : "Disabled"}</dd>
+                    <dd className="text-sm">{form.watch("blind_review") ? "Enabled" : "Disabled"}</dd>
                   </div>
                 </dl>
               </CardContent>
@@ -369,8 +458,11 @@ export default function CreateProgramPage() {
                 Previous
               </Button>
               {currentStep === TOTAL_STEPS ? (
-                <Button onClick={() => console.log("Create program:", formData)}>
-                  Create Program
+                <Button 
+                  onClick={form.handleSubmit(onSubmit)} 
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Creating..." : "Create Program"}
                 </Button>
               ) : (
                 <Button onClick={handleNext}>

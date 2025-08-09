@@ -1,7 +1,31 @@
+'use client'
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth/context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function Home() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/programs');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-center">
+          <p className="text-lg">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
       <div className="text-center">
@@ -10,10 +34,12 @@ export default function Home() {
           Workshop Administration Platform
         </p>
         <div className="flex gap-4 justify-center">
-          <Link href="/programs/create">
-            <Button variant="default">Create Program</Button>
+          <Link href="/auth/login">
+            <Button variant="default">Sign In</Button>
           </Link>
-          <Button variant="outline">Learn More</Button>
+          <Link href="/auth/signup">
+            <Button variant="outline">Sign Up</Button>
+          </Link>
         </div>
       </div>
     </main>
