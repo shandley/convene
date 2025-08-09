@@ -35,5 +35,5 @@ export function getSiteURL() {
  * Get the auth callback URL for email confirmations
  */
 export function getAuthCallbackURL() {
-  return `${getSiteURL()}auth/callback`
+  return `${getSiteURL()}/auth/callback`
 }

@@ -17,22 +17,22 @@ type ProgramWithCreator = Tables<'programs'> & {
 }
 
 export default function ProgramsPage() {
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, initialized, signOut } = useAuth()
   const [programs, setPrograms] = useState<ProgramWithCreator[]>([])
   const [programsLoading, setProgramsLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (initialized && !loading && !user) {
       router.push('/auth/login')
       return
     }
 
-    if (user) {
+    if (initialized && user) {
       fetchPrograms()
     }
-  }, [user, loading, router])
+  }, [user, loading, initialized, router])
 
   const fetchPrograms = async () => {
     try {
@@ -75,7 +75,7 @@ export default function ProgramsPage() {
     }
   }
 
-  if (loading) {
+  if (loading || !initialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-lg">Loading...</p>

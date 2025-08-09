@@ -10,6 +10,7 @@ interface AuthContextType {
   user: User | null
   profile: Tables<'profiles'> | null
   loading: boolean
+  initialized: boolean
   signIn: (email: string, password: string) => Promise<{ error?: string }>
   signUp: (email: string, password: string, metadata?: { full_name?: string }) => Promise<{ error?: string }>
   signOut: () => Promise<void>
@@ -22,13 +23,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Tables<'profiles'> | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
+    let isMounted = true;
+    
     // Failsafe: ensure loading is set to false after a maximum timeout
     const failsafeTimeout = setTimeout(() => {
-      console.log('Failsafe: Setting loading to false after timeout');
-      setLoading(false);
+      if (isMounted) {
+        console.log('Failsafe: Setting loading to false after timeout');
+        setLoading(false);
+        setInitialized(true);
+      }
     }, 5000); // 5 second maximum loading time
 
     // Get initial session
@@ -37,9 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('Getting initial session...');
         const { data: { session }, error } = await supabase.auth.getSession()
         
+        if (!isMounted) return;
+        
         if (error) {
           console.error('Error getting session:', error)
           setLoading(false)
+          setInitialized(true)
           clearTimeout(failsafeTimeout);
           return
         }
@@ -55,10 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .eq('id', session.user.id)
               .single()
             
-            if (profileError) {
-              console.error('Error fetching profile:', profileError)
-            } else {
-              setProfile(profileData)
+            if (isMounted) {
+              if (profileError) {
+                console.error('Error fetching profile:', profileError)
+              } else {
+                setProfile(profileData)
+              }
             }
           } catch (err) {
             console.error('Exception fetching profile:', err)
@@ -67,9 +79,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Exception getting initial session:', err)
       } finally {
-        console.log('Setting loading to false from initial session');
-        setLoading(false)
-        clearTimeout(failsafeTimeout);
+        if (isMounted) {
+          console.log('Setting loading to false from initial session');
+          setLoading(false)
+          setInitialized(true)
+          clearTimeout(failsafeTimeout);
+        }
       }
     }
 
@@ -78,13 +93,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
+        
         console.log('Auth state change:', event, session?.user?.email)
         
-        // Always set loading to false first to ensure UI updates
+        // Always set loading to false and mark as initialized to ensure UI updates
         setLoading(false)
+        setInitialized(true)
         setUser(session?.user ?? null)
         
-        if (session?.user) {
+        if (session?.user && isMounted) {
           try {
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
@@ -92,15 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .eq('id', session.user.id)
               .single()
             
-            if (profileError) {
-              console.error('Error fetching profile on auth change:', profileError)
-            } else {
-              setProfile(profileData)
+            if (isMounted) {
+              if (profileError) {
+                console.error('Error fetching profile on auth change:', profileError)
+              } else {
+                setProfile(profileData)
+              }
             }
           } catch (err) {
             console.error('Exception fetching profile on auth change:', err)
           }
-        } else {
+        } else if (isMounted) {
           setProfile(null)
         }
         
@@ -109,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe()
       clearTimeout(failsafeTimeout);
     }
@@ -192,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       loading,
+      initialized,
       signIn,
       signUp,
       signOut,

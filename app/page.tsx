@@ -8,86 +8,45 @@ import { useEffect, useState, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 function HomeContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, initialized } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [authProcessing, setAuthProcessing] = useState(false);
-  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [redirectAttempted, setRedirectAttempted] = useState(false);
   const [, forceUpdate] = useState({});
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      // Check if this is an auth callback from Supabase email verification
-      const token = searchParams.get('token');
-      const type = searchParams.get('type');
-      const error = searchParams.get('error');
-      const error_description = searchParams.get('error_description');
-      
-      // Handle auth errors from URL
-      if (error) {
-        setAuthError(error_description || error);
-        // Clean up URL
-        router.replace('/');
-        return;
-      }
-      
-      // Handle email verification callback
-      if (token && type === 'signup') {
-        setAuthProcessing(true);
-        try {
-          const supabase = createClient();
-          
-          // Try to verify the email token
-          const { data, error: verifyError } = await supabase.auth.verifyOtp({
-            token_hash: token,
-            type: 'signup',
-          });
-          
-          if (verifyError) {
-            console.error('Email verification error:', verifyError);
-            setAuthError('Failed to verify email. Please try signing up again.');
-          } else if (data?.user) {
-            setAuthMessage('Email verified successfully! You can now sign in.');
-            // Clean up URL and redirect to login after a moment
-            setTimeout(() => {
-              router.replace('/auth/login?message=' + encodeURIComponent('Email verified! Please sign in to continue.'));
-            }, 2000);
-          } else {
-            setAuthError('Email verification completed, but no user session created. Please try signing in.');
-          }
-        } catch (err) {
-          console.error('Exception during email verification:', err);
-          setAuthError('An error occurred during email verification.');
-        } finally {
-          setAuthProcessing(false);
-        }
-        return;
-      }
-    };
-
-    handleAuthCallback();
+    // Handle any auth-related URL parameters (errors from auth callback)
+    const error = searchParams.get('error');
+    const error_description = searchParams.get('error_description');
+    
+    // Handle auth errors from URL
+    if (error) {
+      setAuthError(error_description || error);
+      // Clean up URL
+      router.replace('/');
+      return;
+    }
   }, [searchParams, router]);
 
   useEffect(() => {
-    // If user is logged in, redirect to programs
-    if (!loading && user && !authProcessing && !redirectAttempted) {
+    // If user is logged in and auth is initialized, redirect to programs
+    if (initialized && !loading && user && !redirectAttempted) {
       console.log('Redirecting to /programs - user authenticated');
       setRedirectAttempted(true);
       // Use replace instead of push to avoid back button issues
       router.replace('/programs');
     }
-  }, [user, loading, router, authProcessing, redirectAttempted]);
+  }, [user, loading, initialized, router, redirectAttempted]);
 
   // Add debug logging
   useEffect(() => {
-    console.log('Home page state:', { user: !!user, loading, authProcessing, redirectAttempted });
-  }, [user, loading, authProcessing, redirectAttempted]);
+    console.log('Home page state:', { user: !!user, loading, initialized, redirectAttempted });
+  }, [user, loading, initialized, redirectAttempted]);
 
   // Fallback timeout to ensure redirect happens
   useEffect(() => {
-    if (!loading && user && !authProcessing && !redirectAttempted) {
+    if (initialized && !loading && user && !redirectAttempted) {
       console.log('Fallback redirect timer starting...');
       const timer = setTimeout(() => {
         if (!redirectAttempted) {
@@ -99,16 +58,16 @@ function HomeContent() {
 
       return () => clearTimeout(timer);
     }
-  }, [user, loading, authProcessing, redirectAttempted, router]);
+  }, [user, loading, initialized, redirectAttempted, router]);
 
   // Emergency override: if user is present but loading is stuck, show manual option
-  if (user && (loading || authProcessing)) {
+  if (user && loading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-24">
         <div className="text-center">
           <p className="text-lg text-green-600">✓ Authentication successful!</p>
           <div className="mt-4 text-sm text-gray-500">
-            Debug: loading={loading.toString()}, authProcessing={authProcessing.toString()}, user={user.email}
+            Debug: loading={loading.toString()}, initialized={initialized.toString()}, user={user.email}
           </div>
           <div className="mt-4">
             <Button 
@@ -130,35 +89,20 @@ function HomeContent() {
     );
   }
 
-  // Show loading state during auth processing or normal loading (when no user)
-  if (loading || authProcessing) {
+  // Show loading state during normal loading (when no user or not initialized)
+  if (loading || !initialized) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-24">
         <div className="text-center">
-          <p className="text-lg">
-            {authProcessing ? 'Verifying your email...' : 'Loading...'}
-          </p>
+          <p className="text-lg">Loading...</p>
           <div className="mt-4 text-sm text-gray-500">
-            Debug: loading={loading.toString()}, authProcessing={authProcessing.toString()}, user={user ? 'present' : 'null'}
+            Debug: loading={loading.toString()}, initialized={initialized.toString()}, user={user ? 'present' : 'null'}
           </div>
         </div>
       </main>
     );
   }
 
-  // Show success message
-  if (authMessage) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-24">
-        <div className="text-center">
-          <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
-            <p className="text-green-800">{authMessage}</p>
-          </div>
-          <p className="text-muted-foreground">Redirecting you to sign in...</p>
-        </div>
-      </main>
-    );
-  }
 
   // Show error message
   if (authError) {
