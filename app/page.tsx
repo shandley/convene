@@ -3,18 +3,28 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/context";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, Suspense } from "react";
 
-export default function Home() {
+function HomeContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Check if there's an auth code in the URL params
+    const code = searchParams.get('code');
+    if (code) {
+      // Redirect to the auth callback route with the code
+      router.push(`/auth/callback?code=${code}`);
+      return;
+    }
+
+    // If user is logged in, redirect to programs
     if (!loading && user) {
       router.push('/programs');
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, searchParams]);
 
   if (loading) {
     return (
@@ -43,5 +53,19 @@ export default function Home() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-center">
+          <p className="text-lg">Loading...</p>
+        </div>
+      </main>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }
