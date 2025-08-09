@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/context";
 import { useForm } from "react-hook-form";
@@ -48,6 +48,7 @@ export default function CreateProgramPage() {
 
   const form = useForm<ProgramForm>({
     resolver: zodResolver(programSchema),
+    mode: "onChange", // Validate on change to enable/disable button properly
     defaultValues: {
       title: "",
       description: "",
@@ -62,7 +63,36 @@ export default function CreateProgramPage() {
     },
   });
 
-  const handleNext = () => {
+  // Trigger validation when reaching the review step
+  useEffect(() => {
+    if (currentStep === TOTAL_STEPS) {
+      form.trigger(); // Validate all fields when on review step
+    }
+  }, [currentStep, form]);
+
+  const handleNext = async () => {
+    // Validate current step fields before proceeding
+    let fieldsToValidate: (keyof ProgramForm)[] = [];
+    
+    switch (currentStep) {
+      case 2: // Basic Information
+        fieldsToValidate = ["title", "description", "type"];
+        break;
+      case 3: // Schedule & Capacity
+        fieldsToValidate = ["start_date", "end_date", "application_deadline", "capacity"];
+        break;
+      case 4: // Location & Fees
+        fieldsToValidate = ["location"];
+        break;
+    }
+    
+    if (fieldsToValidate.length > 0) {
+      const isValid = await form.trigger(fieldsToValidate);
+      if (!isValid) {
+        return; // Don't proceed if validation fails
+      }
+    }
+    
     if (currentStep < TOTAL_STEPS) {
       setCurrentStep(currentStep + 1);
     }
@@ -449,6 +479,16 @@ export default function CreateProgramPage() {
             {renderStepIndicator()}
             {renderStepContent()}
             
+            {/* Show validation message on review step if form is incomplete */}
+            {currentStep === TOTAL_STEPS && !form.formState.isValid && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-sm text-yellow-800">
+                  Please go back and fill in all required fields before creating the program.
+                  Missing: {Object.keys(form.formState.errors).join(", ")}
+                </p>
+              </div>
+            )}
+            
             <div className="flex justify-between mt-8">
               <Button
                 variant="outline"
@@ -460,7 +500,7 @@ export default function CreateProgramPage() {
               {currentStep === TOTAL_STEPS ? (
                 <Button 
                   onClick={form.handleSubmit(onSubmit)} 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !form.formState.isValid}
                 >
                   {isSubmitting ? "Creating..." : "Create Program"}
                 </Button>
