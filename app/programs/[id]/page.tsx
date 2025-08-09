@@ -5,9 +5,27 @@ import { useAuth } from '@/lib/auth/context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, MoreVertical, Archive, Trash2, Edit } from 'lucide-react'
 import type { Tables } from '@/types/database.types'
 
 type ProgramWithDetails = Tables<'programs'> & {
@@ -26,8 +44,11 @@ export default function ProgramDetailsPage({ params }: ProgramDetailsPageProps) 
   const [program, setProgram] = useState<ProgramWithDetails | null>(null)
   const [programLoading, setProgramLoading] = useState(true)
   const [error, setError] = useState<string>('')
+  const [archiving, setArchiving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const router = useRouter()
   const [id, setId] = useState<string>('')
+  const { toast } = useToast()
 
   // Unwrap params
   useEffect(() => {
@@ -68,6 +89,73 @@ export default function ProgramDetailsPage({ params }: ProgramDetailsPageProps) 
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setProgramLoading(false)
+    }
+  }
+
+  const handleArchive = async () => {
+    if (!id || archiving) return
+    
+    setArchiving(true)
+    try {
+      const response = await fetch(`/api/programs/${id}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to archive program')
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Program has been archived successfully',
+      })
+
+      router.push('/programs')
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to archive program',
+        variant: 'destructive',
+      })
+    } finally {
+      setArchiving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!id || deleting) return
+    
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/programs/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        if (response.status === 400 && errorData.error?.includes('applications')) {
+          throw new Error('Cannot delete program with existing applications. Please archive it instead.')
+        }
+        throw new Error(errorData.error || 'Failed to delete program')
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Program has been deleted successfully',
+      })
+
+      router.push('/programs')
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: err instanceof Error ? err.message : 'Failed to delete program',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -128,9 +216,84 @@ export default function ProgramDetailsPage({ params }: ProgramDetailsPageProps) 
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              <Link href={`/programs/${program.id}/edit`}>
-                <Button variant="outline">Edit Program</Button>
-              </Link>
+              {/* Only show actions if user is the creator */}
+              {user && program.created_by === user.id && (
+                <>
+                  <Link href={`/programs/${program.id}/edit`}>
+                    <Button variant="outline">
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                  </Link>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <Archive className="mr-2 h-4 w-4" />
+                            Archive Program
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Archive Program</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to archive this program? Archived programs will not be visible in the main list but can be restored later. Existing applications will remain intact.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleArchive}
+                              disabled={archiving}
+                            >
+                              {archiving ? 'Archiving...' : 'Archive Program'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem 
+                              onSelect={(e) => e.preventDefault()}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Program
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Program</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to permanently delete this program? This action cannot be undone. All program data will be lost forever.
+                                <br /><br />
+                                <strong>Note: Programs with existing applications cannot be deleted and must be archived instead.</strong>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={handleDelete}
+                                disabled={deleting}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                {deleting ? 'Deleting...' : 'Delete Program'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              )}
             </div>
           </div>
         </div>

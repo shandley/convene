@@ -167,6 +167,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Check if program can be deleted (no applications)
+    const { data: canDelete, error: checkError } = await supabase
+      .rpc('can_delete_program', { program_id: id })
+
+    if (checkError) {
+      console.error('Error checking delete permission:', checkError)
+      return NextResponse.json({ error: 'Failed to verify deletion safety' }, { status: 500 })
+    }
+
+    if (!canDelete) {
+      return NextResponse.json({ 
+        error: 'Cannot delete program with existing applications. Archive it instead.' 
+      }, { status: 400 })
+    }
+
     const { error } = await supabase
       .from('programs')
       .delete()
