@@ -25,6 +25,10 @@ export async function createClient() {
           }
         },
       },
+      auth: {
+        flowType: 'pkce',
+        detectSessionInUrl: false // We'll handle this manually in our callback route
+      },
     }
   )
 }

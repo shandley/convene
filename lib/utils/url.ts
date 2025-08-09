@@ -37,10 +37,3 @@ export function getSiteURL() {
 export function getAuthCallbackURL() {
   return `${getSiteURL()}auth/callback`
 }
-
-/**
- * Get the auth confirm URL for token hash confirmations
- */
-export function getAuthConfirmURL() {
-  return `${getSiteURL()}auth/confirm`
-}
