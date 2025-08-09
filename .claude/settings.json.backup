@@ -1,0 +1,58 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/startup-prime.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(npx create-next-app:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(vercel:*)",
+      "Bash(supabase:*)",
+      "Bash(npx supabase:*)",
+      "Bash(PGPASSWORD=6EAioD0TZvEdrU1v psql -h aws-0-us-east-1.pooler.supabase.com -p 6543 -U postgres.mfwionthxrjauwhvwcqw -d postgres -f supabase/migrations/20240101000000_initial_schema.sql)",
+      "Bash(PGPASSWORD=6EAioD0TZvEdrU1v psql -h aws-0-us-east-1.pooler.supabase.com -p 6543 -U postgres.mfwionthxrjauwhvwcqw -d postgres -f supabase/migrations/20240101000001_rls_policies.sql)",
+      "Bash(PGPASSWORD=6EAioD0TZvEdrU1v psql -h aws-0-us-east-1.pooler.supabase.com -p 6543 -U postgres.mfwionthxrjauwhvwcqw -d postgres -f supabase/migrations/20240101000002_auth_trigger.sql)",
+      "Bash(PGPASSWORD=6EAioD0TZvEdrU1v psql -h aws-0-us-east-1.pooler.supabase.com -p 6543 -U postgres.mfwionthxrjauwhvwcqw -d postgres -f supabase/migrations/20240101000003_storage.sql)",
+      "Bash(PGPASSWORD=6EAioD0TZvEdrU1v psql -h aws-0-us-east-1.pooler.supabase.com -p 6543 -U postgres.mfwionthxrjauwhvwcqw -d postgres -c \"\\dT\")",
+      "Bash(claude mcp add supabase \"npx -y @supabase/mcp-server-supabase@latest --read-only --project-ref=mfwionthxrjauwhvwcqw\")",
+      "Bash(claude mcp:*)",
+      "WebFetch(domain:vercel.com)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(chmod:*)",
+      "mcp__supabase__list_tables",
+      "Bash(cat:*)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(bash:*)",
+      "Bash(touch:*)",
+      "Bash(mkdir:*)",
+      "Bash(git checkout:*)",
+      "Bash(find:*)",
+      "Bash(echo:*)",
+      "Bash(env)",
+      "Bash(sudo mkdir:*)",
+      "Bash(mv:*)"
+    ],
+    "deny": []
+  }
+}

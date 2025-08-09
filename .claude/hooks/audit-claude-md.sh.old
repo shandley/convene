@@ -1,0 +1,4 @@
+#!/bin/bash
+# Dummy script to prevent Stop hook errors
+# This file exists only to stop error messages
+exit 0
