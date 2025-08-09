@@ -12,7 +12,7 @@ const createFromTemplateSchema = z.object({
     help_text: z.string().optional(),
     placeholder: z.string().optional(),
     options: z.array(z.any()).optional(),
-    validation_rules: z.record(z.any()).optional(),
+    validation_rules: z.record(z.string(), z.any()).optional(),
   }).optional(),
 })
 

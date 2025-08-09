@@ -17,7 +17,7 @@ const updateQuestionSchema = z.object({
   placeholder: z.string().optional(),
   required: z.boolean().optional(),
   max_length: z.number().positive().optional(),
-  validation_rules: z.record(z.any()).optional(),
+  validation_rules: z.record(z.string(), z.any()).optional(),
   options: z.array(z.any()).optional(),
   allowed_file_types: z.array(z.string()).optional(),
   max_file_size_mb: z.number().positive().optional(),
@@ -25,7 +25,7 @@ const updateQuestionSchema = z.object({
   allow_other: z.boolean().optional(),
   randomize_options: z.boolean().optional(),
   depends_on_question_id: z.string().uuid().optional(),
-  show_condition: z.record(z.any()).optional(),
+  show_condition: z.record(z.string(), z.any()).optional(),
   order_index: z.number().optional(),
 })
 
