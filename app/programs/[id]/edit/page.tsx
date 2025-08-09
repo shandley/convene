@@ -460,23 +460,54 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       </TabsContent>
 
       <TabsContent value="questions" className="mt-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Application Questions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <FileText className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Question Builder</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Manage questions that applicants will answer when applying to this program.
-              </p>
-              <p className="text-xs text-gray-500">
-                {questionsLoading ? 'Loading questions...' : `${questions.length} questions configured`}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Application Questions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <FileText className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Question Builder</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Manage questions that applicants will answer when applying to this program.
+                </p>
+                <p className="text-xs text-gray-500 mb-4">
+                  {questionsLoading ? 'Loading questions...' : `${questions.length} questions configured`}
+                </p>
+                <div className="space-x-2">
+                  <Button disabled>Add Question</Button>
+                  <Button variant="outline" disabled>Browse Templates</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {!questionsLoading && questions.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Existing Questions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {questions.map((question, index) => (
+                    <div key={question.id} className="p-3 border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">{question.question_text}</h4>
+                          <p className="text-sm text-gray-600">
+                            Type: {question.question_type} | Required: {question.required ? 'Yes' : 'No'}
+                          </p>
+                        </div>
+                        <Badge variant="outline">{index + 1}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </TabsContent>
 
       <TabsContent value="preview" className="mt-6">
