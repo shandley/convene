@@ -25,17 +25,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = createClient()
 
   useEffect(() => {
+    // Failsafe: ensure loading is set to false after a maximum timeout
+    const failsafeTimeout = setTimeout(() => {
+      console.log('Failsafe: Setting loading to false after timeout');
+      setLoading(false);
+    }, 5000); // 5 second maximum loading time
+
     // Get initial session
     const getInitialSession = async () => {
       try {
+        console.log('Getting initial session...');
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
           console.error('Error getting session:', error)
           setLoading(false)
+          clearTimeout(failsafeTimeout);
           return
         }
 
+        console.log('Initial session result:', session ? 'session found' : 'no session');
         setUser(session?.user ?? null)
         
         if (session?.user) {
@@ -58,7 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Exception getting initial session:', err)
       } finally {
+        console.log('Setting loading to false from initial session');
         setLoading(false)
+        clearTimeout(failsafeTimeout);
       }
     }
 
@@ -69,6 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.email)
         
+        // Always set loading to false first to ensure UI updates
+        setLoading(false)
         setUser(session?.user ?? null)
         
         if (session?.user) {
@@ -90,11 +103,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(null)
         }
-        setLoading(false)
+        
+        console.log('Auth state change processing complete')
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(failsafeTimeout);
+    }
   }, [supabase])
 
   const signIn = async (email: string, password: string) => {

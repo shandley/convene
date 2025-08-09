@@ -14,6 +14,8 @@ function HomeContent() {
   const [authProcessing, setAuthProcessing] = useState(false);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [redirectAttempted, setRedirectAttempted] = useState(false);
+  const [, forceUpdate] = useState({});
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -70,12 +72,65 @@ function HomeContent() {
 
   useEffect(() => {
     // If user is logged in, redirect to programs
-    if (!loading && user && !authProcessing) {
-      router.push('/programs');
+    if (!loading && user && !authProcessing && !redirectAttempted) {
+      console.log('Redirecting to /programs - user authenticated');
+      setRedirectAttempted(true);
+      // Use replace instead of push to avoid back button issues
+      router.replace('/programs');
     }
-  }, [user, loading, router, authProcessing]);
+  }, [user, loading, router, authProcessing, redirectAttempted]);
 
-  // Show loading state during auth processing or normal loading
+  // Add debug logging
+  useEffect(() => {
+    console.log('Home page state:', { user: !!user, loading, authProcessing, redirectAttempted });
+  }, [user, loading, authProcessing, redirectAttempted]);
+
+  // Fallback timeout to ensure redirect happens
+  useEffect(() => {
+    if (!loading && user && !authProcessing && !redirectAttempted) {
+      console.log('Fallback redirect timer starting...');
+      const timer = setTimeout(() => {
+        if (!redirectAttempted) {
+          console.log('Fallback redirect executing...');
+          setRedirectAttempted(true);
+          router.replace('/programs');
+        }
+      }, 100); // Very short timeout as a fallback
+
+      return () => clearTimeout(timer);
+    }
+  }, [user, loading, authProcessing, redirectAttempted, router]);
+
+  // Emergency override: if user is present but loading is stuck, show manual option
+  if (user && (loading || authProcessing)) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-24">
+        <div className="text-center">
+          <p className="text-lg text-green-600">✓ Authentication successful!</p>
+          <div className="mt-4 text-sm text-gray-500">
+            Debug: loading={loading.toString()}, authProcessing={authProcessing.toString()}, user={user.email}
+          </div>
+          <div className="mt-4">
+            <Button 
+              onClick={() => {
+                console.log('Manual redirect to /programs');
+                setRedirectAttempted(true);
+                router.replace('/programs');
+              }}
+              size="lg"
+            >
+              Continue to Programs →
+            </Button>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">
+            Loading state seems stuck. Click above to continue.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // Show loading state during auth processing or normal loading (when no user)
   if (loading || authProcessing) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center p-24">
@@ -83,6 +138,9 @@ function HomeContent() {
           <p className="text-lg">
             {authProcessing ? 'Verifying your email...' : 'Loading...'}
           </p>
+          <div className="mt-4 text-sm text-gray-500">
+            Debug: loading={loading.toString()}, authProcessing={authProcessing.toString()}, user={user ? 'present' : 'null'}
+          </div>
         </div>
       </main>
     );
