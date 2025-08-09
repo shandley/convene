@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getAuthCallbackURL } from '@/lib/utils/url'
 import type { User } from '@supabase/supabase-js'
 import type { Tables } from '@/types/database.types'
 
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: metadata,
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
+        emailRedirectTo: getAuthCallbackURL(),
       },
     })
 
