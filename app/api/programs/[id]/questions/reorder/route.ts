@@ -94,13 +94,14 @@ export async function POST(
       )
     }
 
-    // Check if any system questions are being reordered (optional constraint)
-    const systemQuestions = existingQuestions.filter(q => q.is_system_question)
-    if (systemQuestions.length > 0) {
-      // Could optionally prevent reordering of system questions
-      // For now, we'll allow it but log it
-      console.log('Reordering system questions:', systemQuestions.map(q => q.id))
-    }
+    // TODO: Check if any system questions are being reordered once is_system_question field is added
+    // For now, allow reordering of all questions
+    // const systemQuestions = existingQuestions.filter(q => q.is_system_question)
+    // if (systemQuestions.length > 0) {
+    //   // Could optionally prevent reordering of system questions
+    //   // For now, we'll allow it but log it
+    //   console.log('Reordering system questions:', systemQuestions.map(q => q.id))
+    // }
 
     // Perform bulk update using a transaction-like approach
     // Since Supabase doesn't support true transactions in the client,
