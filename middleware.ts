@@ -40,6 +40,7 @@ export async function middleware(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith('/auth') &&
     !request.nextUrl.pathname.startsWith('/api') &&
+    !request.nextUrl.pathname.startsWith('/apply') &&  // Allow public access to /apply routes
     request.nextUrl.pathname !== '/' &&
     !request.nextUrl.pathname.startsWith('/_next')
   ) {
