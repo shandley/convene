@@ -90,11 +90,11 @@ export default function ProgramsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Programs</h1>
+              <h1 className="text-2xl font-bold text-gray-900">My Programs</h1>
               <p className="mt-1 text-sm text-gray-600">
                 Manage your workshop programs and applications
               </p>
@@ -103,13 +103,10 @@ export default function ProgramsPage() {
               <Link href="/programs/create">
                 <Button>Create Program</Button>
               </Link>
-              <Button variant="outline" onClick={handleSignOut}>
-                Sign Out
-              </Button>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
