@@ -27,8 +27,8 @@ export function getSiteURL() {
     url = `https://${url}`
   }
   
-  // Ensure URL has trailing slash for consistency
-  return url.endsWith('/') ? url : `${url}/`
+  // Remove trailing slash for consistency
+  return url.endsWith('/') ? url.slice(0, -1) : url
 }
 
 /**

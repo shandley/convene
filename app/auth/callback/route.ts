@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const token_hash = requestUrl.searchParams.get('token_hash')
+  const token = requestUrl.searchParams.get('token') // Legacy token parameter
   const type = requestUrl.searchParams.get('type') as EmailOtpType | null
   const next = requestUrl.searchParams.get('next') ?? '/programs'
   const origin = requestUrl.origin
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
   console.log('Auth callback accessed:', {
     code: code ? 'present' : 'missing',
     token_hash: token_hash ? 'present' : 'missing',
+    token: token ? 'present' : 'missing',
     type: type || 'none',
     next,
     origin,
@@ -64,21 +66,28 @@ export async function GET(request: Request) {
     }
   }
 
-  // Handle OTP flow (Magic links with token_hash)
-  if (token_hash && type) {
+  // Handle OTP flow (Magic links with token_hash or legacy token)
+  const actualToken = token_hash || token
+  if (actualToken && type) {
     try {
       const { data, error } = await supabase.auth.verifyOtp({
         type,
-        token_hash,
+        token_hash: actualToken,
       })
 
       console.log('OTP verification result:', {
         success: !error,
         error: error?.message,
-        user: data?.user?.email
+        user: data?.user?.email,
+        tokenType: token_hash ? 'token_hash' : 'legacy_token'
       })
 
       if (!error && data?.user) {
+        // For email confirmation, redirect to login with success message
+        if (type === 'signup' || type === 'email') {
+          return NextResponse.redirect(`${origin}/auth/login?message=${encodeURIComponent('Email confirmed! Please sign in to continue.')}`)
+        }
+        // For other auth flows, redirect to intended destination
         const redirectUrl = `${origin}${next}`
         console.log('OTP: Redirecting to:', redirectUrl)
         return NextResponse.redirect(redirectUrl)

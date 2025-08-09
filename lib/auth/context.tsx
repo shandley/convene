@@ -27,18 +27,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-        setProfile(profileData)
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Error getting session:', error)
+          setLoading(false)
+          return
+        }
+
+        setUser(session?.user ?? null)
+        
+        if (session?.user) {
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single()
+            
+            if (profileError) {
+              console.error('Error fetching profile:', profileError)
+            } else {
+              setProfile(profileData)
+            }
+          } catch (err) {
+            console.error('Exception fetching profile:', err)
+          }
+        }
+      } catch (err) {
+        console.error('Exception getting initial session:', err)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     getInitialSession()
@@ -46,15 +67,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email)
+        
         setUser(session?.user ?? null)
         
         if (session?.user) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-          setProfile(profileData)
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single()
+            
+            if (profileError) {
+              console.error('Error fetching profile on auth change:', profileError)
+            } else {
+              setProfile(profileData)
+            }
+          } catch (err) {
+            console.error('Exception fetching profile on auth change:', err)
+          }
         } else {
           setProfile(null)
         }
