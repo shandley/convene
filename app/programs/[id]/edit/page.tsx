@@ -52,6 +52,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
   const [questionsLoading, setQuestionsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('details')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [hasUnsavedQuestions, setHasUnsavedQuestions] = useState(false)
   const router = useRouter()
   const [id, setId] = useState<string>('')
 
@@ -148,7 +149,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
 
   const handleQuestionsChange = useCallback((updatedQuestions: ApplicationQuestionWithRelations[]) => {
     setQuestions(updatedQuestions)
-    setHasUnsavedChanges(true)
+    setHasUnsavedQuestions(true)
   }, [])
 
   const handleTabChange = (value: string) => {
@@ -191,6 +192,113 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
     }
   }
 
+  // Save form data handler
+  const saveFormData = async (): Promise<boolean> => {
+    if (!form.formState.isDirty) return true
+
+    return new Promise((resolve) => {
+      form.handleSubmit(async (data) => {
+        setIsSubmitting(true)
+        setError('')
+
+        try {
+          const response = await fetch(`/api/programs/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to update program')
+          }
+
+          const { program } = await response.json()
+          setProgram(program)
+          setHasUnsavedChanges(false)
+          resolve(true)
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'An unexpected error occurred')
+          resolve(false)
+        } finally {
+          setIsSubmitting(false)
+        }
+      })()
+    })
+  }
+
+  // Save questions handler
+  const saveQuestions = async (): Promise<boolean> => {
+    if (!hasUnsavedQuestions) return true
+    
+    // Questions are saved individually through the QuestionBuilder
+    // This flag is managed by the child component
+    setHasUnsavedQuestions(false)
+    return true
+  }
+
+  // Unified save function that works across all tabs
+  const saveAllChanges = async (): Promise<boolean> => {
+    if (!user || !id) {
+      setError('You must be logged in to save changes')
+      return false
+    }
+
+    try {
+      // Save form data if there are changes
+      const formSaved = await saveFormData()
+      
+      // Save questions if there are changes
+      const questionsSaved = await saveQuestions()
+      
+      return formSaved && questionsSaved
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred')
+      return false
+    }
+  }
+
+  // Function to handle publishing
+  const handlePublish = async () => {
+    if (!user || !id) return
+
+    // Save any unsaved changes first
+    if (hasUnsavedChanges || hasUnsavedQuestions) {
+      const saved = await saveAllChanges()
+      if (!saved) return // Don't proceed if save failed
+    }
+
+    // Then update status to published
+    try {
+      setIsSubmitting(true)
+      const response = await fetch(`/api/programs/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          ...form.getValues(),
+          status: 'published'
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to publish program')
+      }
+
+      const { program } = await response.json()
+      setProgram(program)
+      form.setValue('status', 'published')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   // Effect to fetch questions when tab becomes active
   useEffect(() => {
     if (activeTab === 'questions') {
@@ -204,6 +312,9 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       setHasUnsavedChanges(true)
     }
   }, [watchedValues, program, form.formState.isDirty])
+
+  // Combined unsaved changes detection
+  const hasAnyUnsavedChanges = hasUnsavedChanges || hasUnsavedQuestions
 
   if (loading || programLoading) {
     return (
@@ -245,10 +356,25 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
           </Link>
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">Edit Program</h1>
-            {hasUnsavedChanges && (
-              <div className="flex items-center gap-2 text-amber-600">
-                <Save className="h-4 w-4" />
-                <span className="text-sm font-medium">You have unsaved changes</span>
+            {hasAnyUnsavedChanges && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-amber-600">
+                  <Save className="h-4 w-4" />
+                  <span className="text-sm font-medium">You have unsaved changes</span>
+                </div>
+                <Button
+                  onClick={saveAllChanges}
+                  disabled={isSubmitting}
+                  size="sm"
+                  className="gap-2"
+                >
+                  {isSubmitting ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {isSubmitting ? 'Saving...' : 'Save All Changes'}
+                </Button>
               </div>
             )}
           </div>
@@ -467,6 +593,9 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
           questions={questions}
           onQuestionsChange={handleQuestionsChange}
           isLoading={questionsLoading}
+          onSave={saveAllChanges}
+          isSaving={isSubmitting}
+          hasUnsavedChanges={hasUnsavedQuestions}
         />
       </TabsContent>
 
@@ -475,6 +604,11 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
           program={program}
           questions={questions}
           isLoading={questionsLoading}
+          mode="admin"
+          onSave={saveAllChanges}
+          onPublish={handlePublish}
+          isSaving={isSubmitting}
+          hasUnsavedChanges={hasAnyUnsavedChanges}
         />
       </TabsContent>
     </Tabs>

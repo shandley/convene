@@ -38,7 +38,9 @@ import {
   CheckSquare,
   List,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Save,
+  AlertTriangle
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -69,6 +71,9 @@ interface QuestionBuilderProps {
   questions: ApplicationQuestionWithRelations[]
   onQuestionsChange: (questions: ApplicationQuestionWithRelations[]) => void
   isLoading?: boolean
+  onSave?: () => void
+  isSaving?: boolean
+  hasUnsavedChanges?: boolean
 }
 
 // Question type icons mapping
@@ -245,7 +250,10 @@ export function QuestionBuilder({
   programId, 
   questions, 
   onQuestionsChange, 
-  isLoading = false 
+  isLoading = false,
+  onSave,
+  isSaving = false,
+  hasUnsavedChanges = false
 }: QuestionBuilderProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<QuestionCategoryType | 'all'>('all')
@@ -398,14 +406,42 @@ export function QuestionBuilder({
       {/* Header with Actions */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Application Questions
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Application Questions
+            </h2>
+            {hasUnsavedChanges && (
+              <Badge variant="secondary" className="gap-1 bg-amber-50 text-amber-700 border-amber-200">
+                <AlertTriangle className="h-3 w-3" />
+                Unsaved Changes
+              </Badge>
+            )}
+            {questions.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {questions.length} question{questions.length === 1 ? '' : 's'}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Manage questions that applicants will answer when applying to this program.
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {onSave && hasUnsavedChanges && (
+            <Button 
+              onClick={onSave}
+              variant="default"
+              disabled={isSaving}
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              {isSaving ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {isSaving ? 'Saving...' : 'Save Questions'}
+            </Button>
+          )}
           <Button 
             onClick={() => setShowTemplateModal(true)}
             variant="outline"
@@ -426,6 +462,35 @@ export function QuestionBuilder({
           </Button>
         </div>
       </div>
+
+      {/* Unsaved Changes Alert */}
+      {hasUnsavedChanges && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="font-medium">You have unsaved changes</span>
+              <span className="text-amber-600">•</span>
+              <span>Save your changes to prevent losing your work</span>
+            </div>
+            {onSave && (
+              <Button
+                onClick={onSave}
+                size="sm"
+                disabled={isSaving}
+                className="gap-2"
+              >
+                {isSaving ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {isSaving ? 'Saving...' : 'Save Now'}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="flex items-center gap-4">

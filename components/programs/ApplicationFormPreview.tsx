@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Calendar, Upload, FileText, Hash, Mail, Link, Phone, List, CheckSquare } from 'lucide-react'
+import { Calendar, Upload, FileText, Hash, Mail, Link, Phone, List, CheckSquare, Save, Eye, AlertTriangle } from 'lucide-react'
 import type { ApplicationQuestionWithRelations, QuestionType } from '@/types/questions'
 import type { Tables } from '@/types/database.types'
 
@@ -16,6 +16,11 @@ interface ApplicationFormPreviewProps {
   program: Tables<'programs'>
   questions: ApplicationQuestionWithRelations[]
   isLoading?: boolean
+  mode?: 'admin' | 'applicant'
+  onSave?: () => Promise<boolean> | void
+  onPublish?: () => Promise<void> | void
+  isSaving?: boolean
+  hasUnsavedChanges?: boolean
 }
 
 const getQuestionTypeIcon = (type: QuestionType) => {
@@ -156,7 +161,16 @@ const renderQuestionInput = (question: ApplicationQuestionWithRelations) => {
   }
 }
 
-export function ApplicationFormPreview({ program, questions, isLoading }: ApplicationFormPreviewProps) {
+export function ApplicationFormPreview({ 
+  program, 
+  questions, 
+  isLoading, 
+  mode = 'applicant',
+  onSave,
+  onPublish,
+  isSaving = false,
+  hasUnsavedChanges = false
+}: ApplicationFormPreviewProps) {
   if (isLoading) {
     return (
       <Card>
@@ -183,13 +197,46 @@ export function ApplicationFormPreview({ program, questions, isLoading }: Applic
   const sortedQuestions = [...questions].sort((a, b) => a.order_index - b.order_index)
 
   return (
-    <Card className="max-w-4xl mx-auto">
-      <CardHeader className="text-center border-b">
-        <CardTitle className="text-2xl">Application Form Preview</CardTitle>
+    <div className="max-w-4xl mx-auto">
+      {mode === 'admin' && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-2 text-sm text-blue-800">
+            <Eye className="h-4 w-4" />
+            <span className="font-medium">Admin Preview Mode</span>
+            <span className="text-blue-600">•</span>
+            <span>This is how applicants will see the application form</span>
+          </div>
+        </div>
+      )}
+      
+      <Card>
+        <CardHeader className="text-center border-b">
+          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-blue-600" />
+            <CardTitle className="text-2xl">Application Form Preview</CardTitle>
+          </div>
+          {mode === 'admin' && (
+            <div className="flex items-center gap-2">
+              {hasUnsavedChanges && (
+                <Badge variant="secondary" className="gap-1 bg-amber-50 text-amber-700 border-amber-200">
+                  <AlertTriangle className="h-3 w-3" />
+                  Unsaved Changes
+                </Badge>
+              )}
+              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                Admin Preview Mode
+              </Badge>
+            </div>
+          )}
+        </div>
         <div className="space-y-2">
           <h2 className="text-xl font-semibold text-gray-900">{program.title}</h2>
           <p className="text-sm text-gray-600">
-            This is how applicants will see the application form
+            {mode === 'admin' 
+              ? 'Preview of how applicants will see the application form'
+              : 'This is how applicants will see the application form'
+            }
           </p>
           {program.application_deadline && (
             <Badge variant="outline" className="text-xs">
@@ -263,22 +310,77 @@ export function ApplicationFormPreview({ program, questions, isLoading }: Applic
             })}
 
             {/* Form Actions Preview */}
-            <div className="border-t pt-8 flex justify-between">
-              <Button variant="outline" disabled className="opacity-75">
-                Save Draft
-              </Button>
-              <div className="space-x-2">
-                <Button variant="outline" disabled className="opacity-75">
-                  Previous
-                </Button>
-                <Button disabled className="opacity-75">
-                  Submit Application
-                </Button>
-              </div>
+            <div className="border-t pt-8">
+              {mode === 'admin' ? (
+                <div className="bg-gray-50 -mx-8 -mb-8 px-8 py-6 rounded-b-lg border-t">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      <p className="font-medium text-gray-900 mb-1">Admin Actions</p>
+                      <p className="text-gray-600">
+                        {hasUnsavedChanges 
+                          ? "Save your changes before publishing the program." 
+                          : "Save your changes or publish the program to make it available to applicants."
+                        }
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {onSave && (
+                        <Button 
+                          onClick={onSave} 
+                          variant={hasUnsavedChanges ? "default" : "outline"}
+                          disabled={isSaving}
+                          className="gap-2"
+                        >
+                          {isSaving ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          ) : (
+                            <Save className="h-4 w-4" />
+                          )}
+                          {isSaving ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                      )}
+                      {onPublish && (
+                        <Button 
+                          onClick={onPublish} 
+                          disabled={isSaving || hasUnsavedChanges}
+                          className="gap-2"
+                          variant={hasUnsavedChanges ? "outline" : "default"}
+                        >
+                          <FileText className="h-4 w-4" />
+                          {program.status === 'draft' ? 'Publish Program' : 'Update Program'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {hasUnsavedChanges && (
+                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                      <p className="text-xs text-amber-700 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        You have unsaved changes. Save them before publishing to ensure applicants see your latest updates.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex justify-between">
+                  <Button variant="outline" disabled className="opacity-75">
+                    Save Draft
+                  </Button>
+                  <div className="space-x-2">
+                    <Button variant="outline" disabled className="opacity-75">
+                      Previous
+                    </Button>
+                    <Button disabled className="opacity-75">
+                      Submit Application
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   )
 }
