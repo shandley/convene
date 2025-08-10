@@ -14,13 +14,14 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, FileText, Settings, Eye, Save } from 'lucide-react'
+import { ChevronLeft, FileText, Settings, Eye, Save, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import type { Tables } from '@/types/database.types'
 import type { ApplicationQuestionWithRelations } from '@/types/questions'
 import { ApplicationFormPreview } from '@/components/programs/ApplicationFormPreview'
 import { QuestionBuilder } from '@/components/programs/questions/QuestionBuilder'
 import { QuestionsService } from '@/lib/services/questions'
+import { useToast } from '@/hooks/use-toast'
 
 const editProgramSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -55,6 +56,7 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
   const [hasUnsavedQuestions, setHasUnsavedQuestions] = useState(false)
   const router = useRouter()
   const [id, setId] = useState<string>('')
+  const { toast } = useToast()
 
   const form = useForm<EditProgramForm>({
     resolver: zodResolver(editProgramSchema),
@@ -184,9 +186,26 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
 
       const { program } = await response.json()
       setHasUnsavedChanges(false)
+      
+      // Show success toast
+      toast({
+        title: "Program updated successfully!",
+        description: "Your changes have been saved.",
+        duration: 3000,
+      })
+      
       router.push(`/programs/${program.id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred')
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+      setError(errorMessage)
+      
+      // Show error toast
+      toast({
+        title: "Failed to update program",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -218,9 +237,27 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
           const { program } = await response.json()
           setProgram(program)
           setHasUnsavedChanges(false)
+          
+          // Show success toast
+          toast({
+            title: "Program updated successfully!",
+            description: "Your changes have been saved.",
+            duration: 3000,
+          })
+          
           resolve(true)
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'An unexpected error occurred')
+          const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+          setError(errorMessage)
+          
+          // Show error toast
+          toast({
+            title: "Failed to save changes",
+            description: errorMessage,
+            variant: "destructive",
+            duration: 5000,
+          })
+          
           resolve(false)
         } finally {
           setIsSubmitting(false)
@@ -236,6 +273,14 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
     // Questions are saved individually through the QuestionBuilder
     // This flag is managed by the child component
     setHasUnsavedQuestions(false)
+    
+    // Show success toast for questions
+    toast({
+      title: "Questions saved successfully!",
+      description: "Your application questions have been updated.",
+      duration: 3000,
+    })
+    
     return true
   }
 
@@ -255,7 +300,17 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       
       return formSaved && questionsSaved
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred')
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+      setError(errorMessage)
+      
+      // Show error toast
+      toast({
+        title: "Failed to save all changes",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      })
+      
       return false
     }
   }
@@ -292,8 +347,24 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
       const { program } = await response.json()
       setProgram(program)
       form.setValue('status', 'published')
+      
+      // Show success toast
+      toast({
+        title: "Program published successfully!",
+        description: "Your program is now available to applicants.",
+        duration: 3000,
+      })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred')
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+      setError(errorMessage)
+      
+      // Show error toast
+      toast({
+        title: "Failed to publish program",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -578,8 +649,19 @@ export default function EditProgramPage({ params }: EditProgramPageProps) {
                 <Button 
                   type="submit" 
                   disabled={isSubmitting || Object.keys(form.formState.errors).length > 0}
+                  className="gap-2"
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  {isSubmitting ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
                 </Button>
               </div>
             </form>

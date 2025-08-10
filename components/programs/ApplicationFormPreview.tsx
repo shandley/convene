@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Calendar, Upload, FileText, Hash, Mail, Link, Phone, List, CheckSquare, Save, Eye, AlertTriangle } from 'lucide-react'
+import { Calendar, Upload, FileText, Hash, Mail, Link, Phone, List, CheckSquare, Save, Eye, AlertTriangle, MapPin, DollarSign, Users, Clock } from 'lucide-react'
 import type { ApplicationQuestionWithRelations, QuestionType } from '@/types/questions'
 import type { Tables } from '@/types/database.types'
 
@@ -204,47 +204,139 @@ export function ApplicationFormPreview({
             <Eye className="h-4 w-4" />
             <span className="font-medium">Admin Preview Mode</span>
             <span className="text-blue-600">•</span>
-            <span>This is how applicants will see the application form</span>
+            <span>This is exactly how applicants will see the full application experience</span>
           </div>
         </div>
       )}
       
-      <Card>
-        <CardHeader className="text-center border-b">
-          <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Eye className="h-5 w-5 text-blue-600" />
-            <CardTitle className="text-2xl">Application Form Preview</CardTitle>
-          </div>
-          {mode === 'admin' && (
-            <div className="flex items-center gap-2">
-              {hasUnsavedChanges && (
-                <Badge variant="secondary" className="gap-1 bg-amber-50 text-amber-700 border-amber-200">
-                  <AlertTriangle className="h-3 w-3" />
-                  Unsaved Changes
-                </Badge>
+      {/* Program Header - What Applicants See First */}
+      <div className="mb-6">
+        <Card className="border-2 border-primary/20">
+          <CardHeader className="text-center bg-gradient-to-r from-primary/5 to-primary/10">
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-2 text-primary">
+                <FileText className="h-6 w-6" />
+                <h1 className="text-3xl font-bold">{program.title}</h1>
+              </div>
+              
+              {program.description && (
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                  {program.description}
+                </p>
               )}
-              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                Admin Preview Mode
-              </Badge>
+              
+              <div className="flex items-center justify-center gap-4 text-sm">
+                <Badge variant="secondary" className="gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {program.type.charAt(0).toUpperCase() + program.type.slice(1)}
+                </Badge>
+                {program.application_deadline && (
+                  <Badge variant="outline" className="gap-1 border-orange-200 text-orange-700">
+                    <Clock className="h-3 w-3" />
+                    Apply by {new Date(program.application_deadline).toLocaleDateString()}
+                  </Badge>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-xl font-semibold text-gray-900">{program.title}</h2>
-          <p className="text-sm text-gray-600">
-            {mode === 'admin' 
-              ? 'Preview of how applicants will see the application form'
-              : 'This is how applicants will see the application form'
-            }
-          </p>
-          {program.application_deadline && (
-            <Badge variant="outline" className="text-xs">
-              Deadline: {new Date(program.application_deadline).toLocaleDateString()}
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* Program Details Card - Key Information */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Program Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Dates */}
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 text-primary mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Program Dates</h4>
+                  <p className="text-base font-medium">
+                    {new Date(program.start_date).toLocaleDateString()} - {new Date(program.end_date).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <Clock className="h-5 w-5 text-primary mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Application Deadline</h4>
+                  <p className="text-base font-medium">
+                    {new Date(program.application_deadline).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="space-y-4">
+              {program.location && (
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-primary mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Location</h4>
+                    <p className="text-base font-medium">{program.location}</p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-start gap-3">
+                <Users className="h-5 w-5 text-primary mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Capacity</h4>
+                  <p className="text-base font-medium">{program.capacity} participants</p>
+                </div>
+              </div>
+              
+              {program.fee !== null && program.fee > 0 && (
+                <div className="flex items-start gap-3">
+                  <DollarSign className="h-5 w-5 text-primary mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Registration Fee</h4>
+                    <p className="text-base font-medium">${program.fee}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Application Form */}
+      <Card>
+        <CardHeader className="border-b">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Application Form
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Complete all required fields to submit your application
+              </p>
+            </div>
+            {mode === 'admin' && (
+              <div className="flex items-center gap-2">
+                {hasUnsavedChanges && (
+                  <Badge variant="secondary" className="gap-1 bg-amber-50 text-amber-700 border-amber-200">
+                    <AlertTriangle className="h-3 w-3" />
+                    Unsaved Changes
+                  </Badge>
+                )}
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  Admin Preview Mode
+                </Badge>
+              </div>
+            )}
+          </div>
+        </CardHeader>
       
       <CardContent className="p-8">
         {sortedQuestions.length === 0 ? (
