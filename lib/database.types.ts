@@ -1405,7 +1405,7 @@ export type Database = {
     }
     Functions: {
       archive_program: {
-        Args: { program_id: string }
+        Args: { p_program_id: string }
         Returns: undefined
       }
       calculate_application_completion: {
@@ -1413,7 +1413,7 @@ export type Database = {
         Returns: number
       }
       can_delete_program: {
-        Args: { program_id: string }
+        Args: { p_program_id: string }
         Returns: boolean
       }
       create_question_from_template: {
@@ -1526,7 +1526,7 @@ export type Database = {
         Returns: undefined
       }
       unarchive_program: {
-        Args: { program_id: string }
+        Args: { p_program_id: string }
         Returns: undefined
       }
       update_application_review_stats: {

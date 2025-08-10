@@ -73,12 +73,12 @@ export async function GET(
 
     // Use the search_question_templates RPC function
     const { data: templates, error } = await supabase.rpc('search_question_templates', {
-      search_text: search || null,
-      category_filter: category as any || null,
-      type_filter: questionType as any || null,
-      tag_filter: tags || null,
+      search_text: search || undefined,
+      category_filter: category as any || undefined,
+      type_filter: questionType as any || undefined,
+      tag_filter: tags || undefined,
       include_private: includePrivate,
-      created_by_filter: null // Allow all creators for now
+      created_by_filter: undefined // Allow all creators for now
     })
 
     if (error) {
@@ -182,7 +182,6 @@ export async function POST(
           .from('application_questions')
           .select(`
             *,
-            category:question_categories(id, title, order_index),
             template:question_templates(id, title)
           `)
           .eq('id', questionId)
@@ -214,7 +213,6 @@ export async function POST(
               .eq('id', questionId)
               .select(`
                 *,
-                category:question_categories(id, title, order_index),
                 template:question_templates(id, title)
               `)
               .single()
@@ -235,10 +233,18 @@ export async function POST(
         }
 
         // Track template usage (increment usage_count)
-        await supabase
+        const { data: template } = await supabase
           .from('question_templates')
-          .update({ usage_count: supabase.raw('usage_count + 1') })
+          .select('usage_count')
           .eq('id', templateConfig.template_id)
+          .single()
+        
+        if (template) {
+          await supabase
+            .from('question_templates')
+            .update({ usage_count: (template.usage_count || 0) + 1 })
+            .eq('id', templateConfig.template_id)
+        }
       } catch (templateError) {
         console.error(`Error processing template ${templateConfig.template_id}:`, templateError)
         errors.push({

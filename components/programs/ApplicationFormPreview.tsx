@@ -238,7 +238,7 @@ export function ApplicationFormPreview({ program, questions, isLoading }: Applic
                         </Badge>
                         {question.category && (
                           <Badge variant="secondary" className="text-xs">
-                            {question.category.name}
+                            {question.category.title}
                           </Badge>
                         )}
                       </div>

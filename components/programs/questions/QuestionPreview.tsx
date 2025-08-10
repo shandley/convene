@@ -340,7 +340,7 @@ export function QuestionPreview({ question }: QuestionPreviewProps) {
             )} */}
             
             {question.category && (
-              <Badge variant="outline">{question.category.name}</Badge>
+              <Badge variant="outline">{question.category.title}</Badge>
             )}
           </div>
         </CardContent>

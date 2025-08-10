@@ -19,14 +19,11 @@ import {
 } from 'lucide-react'
 
 import { QuestionsService } from '@/lib/services/questions'
-import { CategoriesService } from '@/lib/services/categories'
 import { QuestionBuilder } from '@/components/programs/questions/QuestionBuilder'
-import { CategoryManager } from '@/components/programs/questions/CategoryManager'
 import { ApplicationFormPreview } from '@/components/programs/questions/ApplicationFormPreview'
 
 import type { 
-  ApplicationQuestionWithRelations, 
-  QuestionCategory 
+  ApplicationQuestionWithRelations
 } from '@/types/questions'
 import type { Tables } from '@/types/database.types'
 
@@ -40,10 +37,8 @@ export default function ProgramQuestionsPage({ params }: ProgramQuestionsPagePro
   const { user, loading } = useAuth()
   const [program, setProgram] = useState<Program | null>(null)
   const [questions, setQuestions] = useState<ApplicationQuestionWithRelations[]>([])
-  const [categories, setCategories] = useState<QuestionCategory[]>([])
   const [programLoading, setProgramLoading] = useState(true)
   const [questionsLoading, setQuestionsLoading] = useState(true)
-  const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const router = useRouter()
   const [id, setId] = useState<string>('')
@@ -51,7 +46,6 @@ export default function ProgramQuestionsPage({ params }: ProgramQuestionsPagePro
   const { toast } = useToast()
 
   const questionsService = new QuestionsService()
-  const categoriesService = new CategoriesService()
 
   useEffect(() => {
     const getParams = async () => {
@@ -118,29 +112,6 @@ export default function ProgramQuestionsPage({ params }: ProgramQuestionsPagePro
     loadQuestions()
   }, [id, loading, toast])
 
-  // Load categories
-  useEffect(() => {
-    if (!id || loading) return
-
-    const loadCategories = async () => {
-      try {
-        setCategoriesLoading(true)
-        const fetchedCategories = await categoriesService.getCategories(id)
-        setCategories(fetchedCategories)
-      } catch (err) {
-        console.error('Error loading categories:', err)
-        toast({
-          title: "Error",
-          description: "Failed to load categories",
-          variant: "destructive",
-        })
-      } finally {
-        setCategoriesLoading(false)
-      }
-    }
-
-    loadCategories()
-  }, [id, loading, toast])
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -213,10 +184,7 @@ export default function ProgramQuestionsPage({ params }: ProgramQuestionsPagePro
 
   const stats = {
     totalQuestions: questions.length,
-    requiredQuestions: questions.filter(q => q.required).length,
-    categorizedQuestions: questions.filter(q => q.category_id).length,
-    totalCategories: categories.length,
-    visibleCategories: categories.filter(c => c.is_visible).length,
+    requiredQuestions: questions.filter(q => q.required).length
   }
 
   return (
@@ -261,7 +229,7 @@ export default function ProgramQuestionsPage({ params }: ProgramQuestionsPagePro
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-2 gap-4 mb-8">
         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
           <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
             {stats.totalQuestions}
@@ -279,45 +247,14 @@ export default function ProgramQuestionsPage({ params }: ProgramQuestionsPagePro
             Required
           </div>
         </div>
-        
-        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-          <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-            {stats.categorizedQuestions}
-          </div>
-          <div className="text-sm text-green-700 dark:text-green-300">
-            Categorized
-          </div>
-        </div>
-        
-        <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
-          <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-            {stats.totalCategories}
-          </div>
-          <div className="text-sm text-purple-700 dark:text-purple-300">
-            Categories
-          </div>
-        </div>
-        
-        <div className="bg-cyan-50 dark:bg-cyan-900/20 p-4 rounded-lg">
-          <div className="text-2xl font-bold text-cyan-900 dark:text-cyan-100">
-            {stats.visibleCategories}
-          </div>
-          <div className="text-sm text-cyan-700 dark:text-cyan-300">
-            Visible
-          </div>
-        </div>
       </div>
 
       {/* Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="questions" className="gap-2">
             <FileText className="h-4 w-4" />
             Questions ({stats.totalQuestions})
-          </TabsTrigger>
-          <TabsTrigger value="categories" className="gap-2">
-            <FolderOpen className="h-4 w-4" />
-            Categories ({stats.totalCategories})
           </TabsTrigger>
           <TabsTrigger value="preview" className="gap-2">
             <Eye className="h-4 w-4" />
@@ -334,19 +271,10 @@ export default function ProgramQuestionsPage({ params }: ProgramQuestionsPagePro
           />
         </TabsContent>
         
-        <TabsContent value="categories" className="mt-6">
-          <CategoryManager
-            programId={id}
-            categories={categories}
-            onCategoriesChange={setCategories}
-            isLoading={categoriesLoading}
-          />
-        </TabsContent>
-        
         <TabsContent value="preview" className="mt-6">
           <ApplicationFormPreview
             questions={questions}
-            categories={categories}
+            categories={[]}
             programTitle={program.title}
           />
         </TabsContent>

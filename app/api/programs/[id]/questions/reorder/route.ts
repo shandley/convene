@@ -135,7 +135,6 @@ export async function POST(
       .from('application_questions')
       .select(`
         *,
-        category:question_categories(id, title, order_index),
         template:question_templates(id, title)
       `)
       .eq('program_id', programId)
