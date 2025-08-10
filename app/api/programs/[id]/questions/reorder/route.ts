@@ -135,7 +135,7 @@ export async function POST(
       .from('application_questions')
       .select(`
         *,
-        template:question_templates(id, title)
+        template:question_templates!template_id(id, title)
       `)
       .eq('program_id', programId)
       .in('id', questionIds)

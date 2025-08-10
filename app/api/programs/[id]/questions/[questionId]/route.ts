@@ -87,7 +87,7 @@ export async function GET(
       .from('application_questions')
       .select(`
         *,
-        template:question_templates(id, title),
+        template:question_templates!template_id(id, title),
         dependent_questions:application_questions!depends_on_question_id(id, question_text, question_type)
       `)
       .eq('id', questionId)
@@ -190,7 +190,7 @@ export async function PUT(
       .eq('id', questionId)
       .select(`
         *,
-        template:question_templates(id, title)
+        template:question_templates!template_id(id, title)
       `)
       .single()
 

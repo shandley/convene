@@ -89,7 +89,7 @@ export async function GET(
       .from('application_questions')
       .select(`
         *,
-        template:question_templates(id, title)
+        template:question_templates!template_id(id, title)
       `)
       .eq('program_id', programId)
       .order('order_index')
@@ -226,7 +226,7 @@ export async function POST(
       .insert(insertData)
       .select(`
         *,
-        template:question_templates(id, title)
+        template:question_templates!template_id(id, title)
       `)
       .single()
 

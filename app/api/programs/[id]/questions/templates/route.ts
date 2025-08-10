@@ -182,7 +182,7 @@ export async function POST(
           .from('application_questions')
           .select(`
             *,
-            template:question_templates(id, title)
+            question_templates(id, title)
           `)
           .eq('id', questionId)
           .single()
@@ -213,7 +213,7 @@ export async function POST(
               .eq('id', questionId)
               .select(`
                 *,
-                template:question_templates(id, title)
+                question_templates(id, title)
               `)
               .single()
 
