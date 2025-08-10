@@ -54,6 +54,13 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 import type { 
@@ -257,6 +264,7 @@ export function QuestionBuilder({
 }: QuestionBuilderProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<QuestionCategoryType | 'all'>('all')
+  const [selectedType, setSelectedType] = useState<QuestionType | 'all'>('all')
   const [editingQuestion, setEditingQuestion] = useState<ApplicationQuestionWithRelations | null>(null)
   const [previewQuestion, setPreviewQuestion] = useState<ApplicationQuestionWithRelations | null>(null)
   const [showNewQuestionForm, setShowNewQuestionForm] = useState(false)
@@ -273,16 +281,19 @@ export function QuestionBuilder({
     })
   )
 
-  // Filter questions based on search and category
+  // Filter questions based on search, category, and type
   const filteredQuestions = questions.filter(question => {
     const matchesSearch = question.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          question.help_text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          question.category?.title.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesCategory = selectedCategory === 'all' || 
-                           question.category?.title.toLowerCase().includes(selectedCategory)
+                           question.category?.category_type === selectedCategory
     
-    return matchesSearch && matchesCategory
+    const matchesType = selectedType === 'all' || 
+                       question.question_type === selectedType
+    
+    return matchesSearch && matchesCategory && matchesType
   })
 
   const categories: { value: QuestionCategoryType | 'all'; label: string }[] = [
@@ -294,6 +305,21 @@ export function QuestionBuilder({
     { value: 'preferences', label: 'Preferences' },
     { value: 'documents', label: 'Documents' },
     { value: 'custom', label: 'Custom' },
+  ]
+
+  const questionTypes: { value: QuestionType | 'all'; label: string }[] = [
+    { value: 'all', label: 'All Types' },
+    { value: 'text', label: 'Short Text' },
+    { value: 'textarea', label: 'Long Text' },
+    { value: 'select', label: 'Single Select' },
+    { value: 'multi_select', label: 'Multi Select' },
+    { value: 'checkbox', label: 'Checkboxes' },
+    { value: 'file', label: 'File Upload' },
+    { value: 'number', label: 'Number' },
+    { value: 'date', label: 'Date' },
+    { value: 'email', label: 'Email' },
+    { value: 'url', label: 'URL' },
+    { value: 'phone', label: 'Phone' },
   ]
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -504,24 +530,39 @@ export function QuestionBuilder({
           />
         </div>
         
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <Filter className="h-4 w-4" />
-              {categories.find(c => c.value === selectedCategory)?.label}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            {categories.map(category => (
-              <DropdownMenuItem
-                key={category.value}
-                onClick={() => setSelectedCategory(category.value)}
-              >
-                {category.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <Select value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as QuestionCategoryType | 'all')}>
+            <SelectTrigger className="w-[180px]">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                <SelectValue placeholder="Select category" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map(category => (
+                <SelectItem key={category.value} value={category.value}>
+                  {category.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedType} onValueChange={(value) => setSelectedType(value as QuestionType | 'all')}>
+            <SelectTrigger className="w-[150px]">
+              <div className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                <SelectValue placeholder="Select type" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {questionTypes.map(type => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Questions List */}
