@@ -204,7 +204,7 @@ function TemplateCard({ template, isSelected, onSelect, onPreview }: TemplateCar
             </div>
           </div>
           
-          {template.tags.length > 0 && (
+          {template.tags && Array.isArray(template.tags) && template.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {template.tags.slice(0, 3).map((tag) => (
                 <Badge key={tag} variant="outline" className="text-xs">
@@ -254,7 +254,7 @@ export function QuestionTemplateModal({
                            template.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            template.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            template.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           template.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+                           (template.tags && Array.isArray(template.tags) && template.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
       
       const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory
       const matchesType = selectedType === 'all' || template.question_type === selectedType
@@ -584,7 +584,7 @@ export function QuestionTemplateModal({
                     )}
                   </div>
                   
-                  {previewTemplate.tags.length > 0 && (
+                  {previewTemplate.tags && Array.isArray(previewTemplate.tags) && previewTemplate.tags.length > 0 && (
                     <div>
                       <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags:</p>
                       <div className="flex flex-wrap gap-1">

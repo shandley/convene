@@ -52,7 +52,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu'
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 import type { 
   ApplicationQuestionWithRelations, 
@@ -523,6 +523,9 @@ export function QuestionBuilder({
       {/* Question Form Dialog */}
       <Dialog open={showNewQuestionForm} onOpenChange={setShowNewQuestionForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{editingQuestion ? 'Edit Question' : 'Add New Question'}</DialogTitle>
+          </DialogHeader>
           <QuestionForm
             programId={programId}
             question={editingQuestion}
@@ -548,6 +551,9 @@ export function QuestionBuilder({
       {/* Question Preview Dialog */}
       <Dialog open={!!previewQuestion} onOpenChange={(open) => !open && setPreviewQuestion(null)}>
         <DialogContent className="max-w-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Question Preview</DialogTitle>
+          </DialogHeader>
           {previewQuestion && (
             <QuestionPreview question={previewQuestion} />
           )}

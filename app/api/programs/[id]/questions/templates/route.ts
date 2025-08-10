@@ -71,15 +71,29 @@ export async function GET(
     const tags = searchParams.get('tags')
     const includePrivate = searchParams.get('include_private') === 'true'
 
-    // Use the search_question_templates RPC function
-    const { data: templates, error } = await supabase.rpc('search_question_templates', {
-      search_text: search || undefined,
-      category_filter: category as any || undefined,
-      type_filter: questionType as any || undefined,
-      tag_filter: tags || undefined,
-      include_private: includePrivate,
-      created_by_filter: undefined // Allow all creators for now
-    })
+    // Build query for templates
+    let query = supabase
+      .from('question_templates')
+      .select('*')
+      .or(`is_public.eq.true${includePrivate ? ',created_by.eq.' + user.id : ''}`)
+      .order('usage_count', { ascending: false })
+      .order('created_at', { ascending: false })
+
+    // Apply filters
+    if (category) {
+      query = query.eq('category', category)
+    }
+    if (questionType) {
+      query = query.eq('question_type', questionType)
+    }
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,question_text.ilike.%${search}%`)
+    }
+    if (tags) {
+      query = query.contains('tags', [tags])
+    }
+
+    const { data: templates, error } = await query
 
     if (error) {
       console.error('Error fetching templates:', error)
