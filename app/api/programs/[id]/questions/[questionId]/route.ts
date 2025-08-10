@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import type { Database } from '@/types/database.types'
+import type { ApplicationQuestionWithRelations } from '@/types/questions'
 
 // Question validation schemas
 const questionTypeSchema = z.enum([
@@ -85,11 +86,7 @@ export async function GET(
 
     const { data: question, error } = await supabase
       .from('application_questions')
-      .select(`
-        *,
-        template:question_templates!template_id(id, title),
-        dependent_questions:application_questions!depends_on_question_id(id, question_text, question_type)
-      `)
+      .select('*')
       .eq('id', questionId)
       .single()
 
@@ -98,7 +95,40 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch question' }, { status: 500 })
     }
 
-    return NextResponse.json({ question })
+    // Manually fetch related data
+    let questionWithRelations: ApplicationQuestionWithRelations = {
+      ...question,
+      template: null,
+      dependent_questions: []
+    }
+
+    if (question?.template_id) {
+      const { data: template } = await supabase
+        .from('question_templates')
+        .select('id, title')
+        .eq('id', question.template_id)
+        .single()
+      
+      if (template) {
+        questionWithRelations.template = template
+      }
+    }
+
+    // Fetch dependent questions
+    const { data: dependentQuestions } = await supabase
+      .from('application_questions')
+      .select('id, question_text, question_type')
+      .eq('depends_on_question_id', questionId)
+
+    if (dependentQuestions) {
+      questionWithRelations.dependent_questions = dependentQuestions.map(dq => ({
+        id: dq.id,
+        question_text: dq.question_text,
+        question_type: dq.question_type
+      }))
+    }
+
+    return NextResponse.json({ question: questionWithRelations })
   } catch (error) {
     console.error('Question GET error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -188,10 +218,7 @@ export async function PUT(
       .from('application_questions')
       .update(updateData)
       .eq('id', questionId)
-      .select(`
-        *,
-        template:question_templates!template_id(id, title)
-      `)
+      .select('*')
       .single()
 
     if (error) {
@@ -199,7 +226,29 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to update question' }, { status: 500 })
     }
 
-    return NextResponse.json({ question })
+    // Manually fetch template information if needed
+    let questionWithTemplate: ApplicationQuestionWithRelations
+    if (question?.template_id) {
+      const { data: template } = await supabase
+        .from('question_templates')
+        .select('id, title')
+        .eq('id', question.template_id)
+        .single()
+      
+      questionWithTemplate = {
+        ...question,
+        template: template || null,
+        dependent_questions: []
+      }
+    } else {
+      questionWithTemplate = {
+        ...question,
+        template: null,
+        dependent_questions: []
+      }
+    }
+
+    return NextResponse.json({ question: questionWithTemplate })
   } catch (error) {
     console.error('Question PUT error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import type { Database } from '@/types/database.types'
+import type { ApplicationQuestionWithRelations } from '@/types/questions'
 
 // Question validation schemas
 const questionTypeSchema = z.enum([
@@ -88,8 +89,7 @@ export async function GET(
     let query = supabase
       .from('application_questions')
       .select(`
-        *,
-        template:question_templates!template_id(id, title)
+        *
       `)
       .eq('program_id', programId)
       .order('order_index')
@@ -106,7 +106,31 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
-    return NextResponse.json({ questions })
+    // Manually fetch template information if needed
+    const questionsWithTemplates: ApplicationQuestionWithRelations[] = await Promise.all(
+      (questions || []).map(async (question): Promise<ApplicationQuestionWithRelations> => {
+        if (question.template_id) {
+          const { data: template } = await supabase
+            .from('question_templates')
+            .select('id, title')
+            .eq('id', question.template_id)
+            .single()
+          
+          return {
+            ...question,
+            template: template || null,
+            dependent_questions: []
+          }
+        }
+        return {
+          ...question,
+          template: null,
+          dependent_questions: []
+        }
+      })
+    )
+
+    return NextResponse.json({ questions: questionsWithTemplates })
   } catch (error) {
     console.error('Questions GET error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -224,10 +248,7 @@ export async function POST(
     const { data: question, error } = await supabase
       .from('application_questions')
       .insert(insertData)
-      .select(`
-        *,
-        template:question_templates!template_id(id, title)
-      `)
+      .select('*')
       .single()
 
     if (error) {
@@ -235,7 +256,29 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to create question' }, { status: 500 })
     }
 
-    return NextResponse.json({ question }, { status: 201 })
+    // Manually fetch template information if needed
+    let questionWithTemplate: ApplicationQuestionWithRelations
+    if (question?.template_id) {
+      const { data: template } = await supabase
+        .from('question_templates')
+        .select('id, title')
+        .eq('id', question.template_id)
+        .single()
+      
+      questionWithTemplate = {
+        ...question,
+        template: template || null,
+        dependent_questions: []
+      }
+    } else {
+      questionWithTemplate = {
+        ...question,
+        template: null,
+        dependent_questions: []
+      }
+    }
+
+    return NextResponse.json({ question: questionWithTemplate }, { status: 201 })
   } catch (error) {
     console.error('Questions POST error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

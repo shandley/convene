@@ -26,27 +26,27 @@ export type QuestionCategoryType =
 // Database Row Types
 export interface ApplicationQuestion {
   id: string
-  program_id: string
+  program_id: string | null
   category_id: string | null
   template_id: string | null
   question_text: string
   question_type: QuestionType
   help_text: string | null
   placeholder: string | null
-  required: boolean
+  required: boolean | null
   max_length: number | null
-  validation_rules: Json
+  validation_rules: Json | null
   options: Json | null
   allowed_file_types: string[] | null
   max_file_size_mb: number | null
-  max_files: number
-  allow_other: boolean
-  randomize_options: boolean
+  max_files: number | null
+  allow_other: boolean | null
+  randomize_options: boolean | null
   depends_on_question_id: string | null
   show_condition: Json | null
-  is_system_question?: boolean // Optional until field is added to database
+  is_system_question?: boolean | null // Optional until field is added to database
   order_index: number
-  created_at: string
+  created_at: string | null
   updated_at: string | null
 }
 
