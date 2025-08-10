@@ -57,21 +57,7 @@ export type Database = {
             foreignKeyName: "announcements_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
-            referencedRelation: "program_application_stats"
-            referencedColumns: ["program_id"]
-          },
-          {
-            foreignKeyName: "announcements_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
             referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "announcements_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "public_programs"
             referencedColumns: ["id"]
           },
         ]
@@ -168,20 +154,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "application_questions_depends_on_question_id_fkey"
-            columns: ["depends_on_question_id"]
-            isOneToOne: false
-            referencedRelation: "question_statistics"
-            referencedColumns: ["question_id"]
-          },
-          {
-            foreignKeyName: "application_questions_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "program_application_stats"
-            referencedColumns: ["program_id"]
-          },
-          {
             foreignKeyName: "application_questions_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
@@ -189,10 +161,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "application_questions_program_id_fkey"
-            columns: ["program_id"]
+            foreignKeyName: "application_questions_template_id_fkey"
+            columns: ["template_id"]
             isOneToOne: false
-            referencedRelation: "public_programs"
+            referencedRelation: "question_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -254,13 +226,6 @@ export type Database = {
             foreignKeyName: "application_responses_application_id_fkey"
             columns: ["application_id"]
             isOneToOne: false
-            referencedRelation: "application_overview"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "application_responses_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
             referencedRelation: "applications"
             referencedColumns: ["id"]
           },
@@ -270,13 +235,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "application_questions"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "application_responses_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "question_statistics"
-            referencedColumns: ["question_id"]
           },
         ]
       }
@@ -390,21 +348,7 @@ export type Database = {
             foreignKeyName: "applications_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
-            referencedRelation: "program_application_stats"
-            referencedColumns: ["program_id"]
-          },
-          {
-            foreignKeyName: "applications_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
             referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "applications_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "public_programs"
             referencedColumns: ["id"]
           },
         ]
@@ -484,13 +428,6 @@ export type Database = {
             foreignKeyName: "documents_application_id_fkey"
             columns: ["application_id"]
             isOneToOne: false
-            referencedRelation: "application_overview"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
             referencedRelation: "applications"
             referencedColumns: ["id"]
           },
@@ -500,13 +437,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "application_questions"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "question_statistics"
-            referencedColumns: ["question_id"]
           },
           {
             foreignKeyName: "documents_replaces_document_id_fkey"
@@ -598,13 +528,6 @@ export type Database = {
             foreignKeyName: "participants_application_id_fkey"
             columns: ["application_id"]
             isOneToOne: false
-            referencedRelation: "application_overview"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "participants_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
             referencedRelation: "applications"
             referencedColumns: ["id"]
           },
@@ -612,21 +535,7 @@ export type Database = {
             foreignKeyName: "participants_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
-            referencedRelation: "program_application_stats"
-            referencedColumns: ["program_id"]
-          },
-          {
-            foreignKeyName: "participants_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
             referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "participants_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "public_programs"
             referencedColumns: ["id"]
           },
           {
@@ -711,21 +620,7 @@ export type Database = {
             foreignKeyName: "program_members_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
-            referencedRelation: "program_application_stats"
-            referencedColumns: ["program_id"]
-          },
-          {
-            foreignKeyName: "program_members_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
             referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "program_members_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "public_programs"
             referencedColumns: ["id"]
           },
           {
@@ -875,21 +770,7 @@ export type Database = {
             foreignKeyName: "question_categories_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
-            referencedRelation: "program_application_stats"
-            referencedColumns: ["program_id"]
-          },
-          {
-            foreignKeyName: "question_categories_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
             referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "question_categories_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "public_programs"
             referencedColumns: ["id"]
           },
         ]
@@ -1102,13 +983,6 @@ export type Database = {
             foreignKeyName: "review_assignments_application_id_fkey"
             columns: ["application_id"]
             isOneToOne: false
-            referencedRelation: "application_overview"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "review_assignments_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
             referencedRelation: "applications"
             referencedColumns: ["id"]
           },
@@ -1175,233 +1049,44 @@ export type Database = {
           },
         ]
       }
-    }
-    Views: {
-      application_overview: {
+      security_config_status: {
         Row: {
-          applicant_email: string | null
-          applicant_id: string | null
-          applicant_institution: string | null
-          applicant_name: string | null
-          average_score: number | null
-          completed_required_count: number | null
-          completion_percentage: number | null
-          created_at: string | null
-          decided_at: string | null
-          decided_by: string | null
-          decided_by_name: string | null
-          document_count: number | null
-          id: string | null
-          is_draft: boolean | null
-          last_modified_at: string | null
-          program_id: string | null
-          program_title: string | null
-          required_question_count: number | null
-          response_count: number | null
-          review_consensus: string | null
-          review_count: number | null
-          status: Database["public"]["Enums"]["application_status"] | null
-          submitted_at: string | null
-          waitlist_position: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "applications_applicant_id_fkey"
-            columns: ["applicant_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "applications_decided_by_fkey"
-            columns: ["decided_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "applications_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "program_application_stats"
-            referencedColumns: ["program_id"]
-          },
-          {
-            foreignKeyName: "applications_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "applications_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "public_programs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      program_application_stats: {
-        Row: {
-          accepted: number | null
-          application_deadline: string | null
-          applications_with_reviews: number | null
-          avg_completion_percentage: number | null
-          avg_score: number | null
-          capacity: number | null
-          capacity_utilization_pct: number | null
-          draft_applications: number | null
-          fully_completed: number | null
-          program_id: string | null
-          program_status: Database["public"]["Enums"]["program_status"] | null
-          program_title: string | null
-          rejected: number | null
-          submitted_applications: number | null
-          total_applications: number | null
-          under_review: number | null
-          waitlisted: number | null
-          withdrawn: number | null
-        }
-        Relationships: []
-      }
-      public_programs: {
-        Row: {
-          application_deadline: string | null
-          archived: boolean | null
-          archived_at: string | null
-          archived_by: string | null
-          auto_waitlist_promotion: boolean | null
-          blind_review: boolean | null
-          capacity: number | null
-          created_at: string | null
-          created_by: string | null
-          current_enrolled: number | null
-          current_waitlisted: number | null
+          config_item: string
           description: string | null
-          end_date: string | null
-          fee: number | null
-          id: string | null
-          location: string | null
-          start_date: string | null
-          status: Database["public"]["Enums"]["program_status"] | null
-          title: string | null
-          type: string | null
+          id: string
+          status: string
           updated_at: string | null
-          waitlist_capacity: number | null
+          updated_by: string | null
         }
         Insert: {
-          application_deadline?: string | null
-          archived?: boolean | null
-          archived_at?: string | null
-          archived_by?: string | null
-          auto_waitlist_promotion?: boolean | null
-          blind_review?: boolean | null
-          capacity?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          current_enrolled?: number | null
-          current_waitlisted?: number | null
+          config_item: string
           description?: string | null
-          end_date?: string | null
-          fee?: number | null
-          id?: string | null
-          location?: string | null
-          start_date?: string | null
-          status?: Database["public"]["Enums"]["program_status"] | null
-          title?: string | null
-          type?: string | null
+          id?: string
+          status: string
           updated_at?: string | null
-          waitlist_capacity?: number | null
+          updated_by?: string | null
         }
         Update: {
-          application_deadline?: string | null
-          archived?: boolean | null
-          archived_at?: string | null
-          archived_by?: string | null
-          auto_waitlist_promotion?: boolean | null
-          blind_review?: boolean | null
-          capacity?: number | null
-          created_at?: string | null
-          created_by?: string | null
-          current_enrolled?: number | null
-          current_waitlisted?: number | null
+          config_item?: string
           description?: string | null
-          end_date?: string | null
-          fee?: number | null
-          id?: string | null
-          location?: string | null
-          start_date?: string | null
-          status?: Database["public"]["Enums"]["program_status"] | null
-          title?: string | null
-          type?: string | null
+          id?: string
+          status?: string
           updated_at?: string | null
-          waitlist_capacity?: number | null
+          updated_by?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "programs_archived_by_fkey"
-            columns: ["archived_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "programs_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "security_config_status_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
-      question_statistics: {
-        Row: {
-          avg_response_length: number | null
-          category_id: string | null
-          category_title: string | null
-          complete_responses: number | null
-          completion_rate: number | null
-          files_uploaded: number | null
-          incomplete_responses: number | null
-          program_id: string | null
-          question_id: string | null
-          question_text: string | null
-          question_type: Database["public"]["Enums"]["question_type"] | null
-          required: boolean | null
-          total_responses: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "application_questions_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "question_categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "application_questions_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "program_application_stats"
-            referencedColumns: ["program_id"]
-          },
-          {
-            foreignKeyName: "application_questions_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "application_questions_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "public_programs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+    }
+    Views: {
+      [_ in never]: never
     }
     Functions: {
       archive_program: {
@@ -1531,6 +1216,14 @@ export type Database = {
       }
       update_application_review_stats: {
         Args: { app_id: string }
+        Returns: undefined
+      }
+      update_security_config_status: {
+        Args: {
+          p_config_item: string
+          p_status: string
+          p_description?: string
+        }
         Returns: undefined
       }
     }

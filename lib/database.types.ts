@@ -1175,6 +1175,41 @@ export type Database = {
           },
         ]
       }
+      security_config_status: {
+        Row: {
+          config_item: string
+          description: string | null
+          id: string
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          config_item: string
+          description?: string | null
+          id?: string
+          status: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          config_item?: string
+          description?: string | null
+          id?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_config_status_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       application_overview: {
@@ -1531,6 +1566,14 @@ export type Database = {
       }
       update_application_review_stats: {
         Args: { app_id: string }
+        Returns: undefined
+      }
+      update_security_config_status: {
+        Args: {
+          p_config_item: string
+          p_status: string
+          p_description?: string
+        }
         Returns: undefined
       }
     }
