@@ -2,6 +2,34 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
+// Define enum values for type safety
+const QUESTION_CATEGORIES = [
+  'personal_info',
+  'background', 
+  'experience',
+  'essays',
+  'preferences',
+  'documents',
+  'custom'
+] as const
+
+const QUESTION_TYPES = [
+  'text',
+  'textarea',
+  'select', 
+  'multi_select',
+  'checkbox',
+  'file',
+  'number',
+  'date',
+  'email',
+  'url',
+  'phone'
+] as const
+
+type QuestionCategory = typeof QUESTION_CATEGORIES[number]
+type QuestionType = typeof QUESTION_TYPES[number]
+
 const createFromTemplateSchema = z.object({
   template_id: z.string().uuid(),
   category_id: z.string().uuid().optional(),
@@ -79,12 +107,12 @@ export async function GET(
       .order('usage_count', { ascending: false })
       .order('created_at', { ascending: false })
 
-    // Apply filters
-    if (category) {
-      query = query.eq('category', category)
+    // Apply filters with type validation
+    if (category && QUESTION_CATEGORIES.includes(category as QuestionCategory)) {
+      query = query.eq('category', category as QuestionCategory)
     }
-    if (questionType) {
-      query = query.eq('question_type', questionType)
+    if (questionType && QUESTION_TYPES.includes(questionType as QuestionType)) {
+      query = query.eq('question_type', questionType as QuestionType)
     }
     if (search) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,question_text.ilike.%${search}%`)
