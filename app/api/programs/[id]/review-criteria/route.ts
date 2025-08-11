@@ -1,6 +1,5 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
 import type { Database } from '@/types/database.types'
 
 // GET /api/programs/[id]/review-criteria
@@ -8,7 +7,7 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createRouteHandlerClient<Database>({ cookies })
+  const supabase = await createClient()
 
   try {
     // Check authentication
@@ -46,7 +45,7 @@ export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createRouteHandlerClient<Database>({ cookies })
+  const supabase = await createClient()
 
   try {
     // Check authentication
@@ -102,7 +101,7 @@ export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createRouteHandlerClient<Database>({ cookies })
+  const supabase = await createClient()
 
   try {
     // Check authentication

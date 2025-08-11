@@ -1,11 +1,10 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
 import type { Database } from '@/types/database.types'
 
 // GET /api/review-templates
 export async function GET(request: Request) {
-  const supabase = createRouteHandlerClient<Database>({ cookies })
+  const supabase = await createClient()
 
   try {
     // Check authentication
@@ -27,7 +26,7 @@ export async function GET(request: Request) {
 
     // Apply filters
     if (category) {
-      query = query.eq('category', category)
+      query = query.eq('category', category as Database['public']['Enums']['template_category'])
     }
     if (isActive !== null) {
       query = query.eq('is_active', isActive === 'true')
@@ -52,7 +51,7 @@ export async function GET(request: Request) {
 
 // POST /api/review-templates
 export async function POST(request: Request) {
-  const supabase = createRouteHandlerClient<Database>({ cookies })
+  const supabase = await createClient()
 
   try {
     // Check authentication
