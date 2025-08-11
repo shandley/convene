@@ -5,7 +5,7 @@ import type { Database } from '@/types/database.types'
 // POST /api/programs/[id]/apply-template
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -16,7 +16,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const programId = params.id
+    const { id: programId } = await params
     const { templateId } = await request.json()
 
     if (!templateId) {

@@ -5,7 +5,7 @@ import type { Database } from '@/types/database.types'
 // GET /api/programs/[id]/review-stats
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const programId = params.id
+    const { id: programId } = await params
 
     // Get program review statistics using the database function
     const { data: stats, error: statsError } = await supabase

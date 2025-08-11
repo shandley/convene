@@ -5,7 +5,7 @@ import type { Database } from '@/types/database.types'
 // GET /api/programs/[id]/review-criteria
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const programId = params.id
+    const { id: programId } = await params
 
     // Get review criteria for the program
     const { data: criteria, error } = await supabase
@@ -43,7 +43,7 @@ export async function GET(
 // POST /api/programs/[id]/review-criteria
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -54,7 +54,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const programId = params.id
+    const { id: programId } = await params
     const body = await request.json()
 
     // If sort_order is not provided, get the next available order
@@ -99,7 +99,7 @@ export async function POST(
 // Bulk update for reordering criteria
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -110,7 +110,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const programId = params.id
+    const { id: programId } = await params
     const { criteria } = await request.json()
 
     // Bulk update criteria (useful for reordering)

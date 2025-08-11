@@ -5,7 +5,7 @@ import type { Database } from '@/types/database.types'
 // GET /api/review-templates/[templateId]
 export async function GET(
   request: Request,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { templateId } = params
+    const { templateId } = await params
 
     // Get specific review template
     const { data, error } = await supabase
@@ -43,7 +43,7 @@ export async function GET(
 // PUT /api/review-templates/[templateId]
 export async function PUT(
   request: Request,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -54,7 +54,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { templateId } = params
+    const { templateId } = await params
     const body = await request.json()
 
     // Update review template
@@ -83,7 +83,7 @@ export async function PUT(
 // DELETE /api/review-templates/[templateId]
 export async function DELETE(
   request: Request,
-  { params }: { params: { templateId: string } }
+  { params }: { params: Promise<{ templateId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -94,7 +94,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { templateId } = params
+    const { templateId } = await params
 
     // Soft delete by setting is_active to false
     const { error } = await supabase

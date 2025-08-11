@@ -5,7 +5,7 @@ import type { Database } from '@/types/database.types'
 // GET /api/programs/[id]/review-settings
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const programId = params.id
+    const { id: programId } = await params
 
     // Get review settings for the program
     const { data: settings, error } = await supabase
@@ -50,7 +50,7 @@ export async function GET(
 // POST /api/programs/[id]/review-settings
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -61,7 +61,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const programId = params.id
+    const { id: programId } = await params
     const body = await request.json()
 
     // Create review settings
@@ -92,7 +92,7 @@ export async function POST(
 // PUT /api/programs/[id]/review-settings
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -103,7 +103,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const programId = params.id
+    const { id: programId } = await params
     const body = await request.json()
 
     // Update review settings
@@ -132,7 +132,7 @@ export async function PUT(
 // DELETE /api/programs/[id]/review-settings
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -143,7 +143,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const programId = params.id
+    const { id: programId } = await params
 
     // Delete review settings
     const { error } = await supabase

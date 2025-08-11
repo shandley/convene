@@ -5,7 +5,7 @@ import type { Database } from '@/types/database.types'
 // GET /api/reviews/[reviewId]/scores
 export async function GET(
   request: Request,
-  { params }: { params: { reviewId: string } }
+  { params }: { params: Promise<{ reviewId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewId } = params
+    const { reviewId } = await params
 
     // Get review scores with criteria details
     const { data: scores, error } = await supabase
@@ -47,7 +47,7 @@ export async function GET(
 // Submit or update scores for a review
 export async function POST(
   request: Request,
-  { params }: { params: { reviewId: string } }
+  { params }: { params: Promise<{ reviewId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -58,7 +58,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewId } = params
+    const { reviewId } = await params
     const { scores } = await request.json()
 
     if (!scores || !Array.isArray(scores)) {
@@ -167,7 +167,7 @@ export async function POST(
 // Clear all scores for a review
 export async function DELETE(
   request: Request,
-  { params }: { params: { reviewId: string } }
+  { params }: { params: Promise<{ reviewId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -178,7 +178,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewId } = params
+    const { reviewId } = await params
 
     // Verify reviewer has access to this review
     const { data: review, error: reviewError } = await supabase

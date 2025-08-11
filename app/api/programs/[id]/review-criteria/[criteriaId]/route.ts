@@ -5,7 +5,7 @@ import type { Database } from '@/types/database.types'
 // GET /api/programs/[id]/review-criteria/[criteriaId]
 export async function GET(
   request: Request,
-  { params }: { params: { id: string; criteriaId: string } }
+  { params }: { params: Promise<{ id: string; criteriaId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { criteriaId } = params
+    const { criteriaId } = await params
 
     // Get specific review criterion
     const { data, error } = await supabase
@@ -43,7 +43,7 @@ export async function GET(
 // PUT /api/programs/[id]/review-criteria/[criteriaId]
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string; criteriaId: string } }
+  { params }: { params: Promise<{ id: string; criteriaId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -54,7 +54,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { criteriaId } = params
+    const { criteriaId } = await params
     const body = await request.json()
 
     // Update review criterion
@@ -83,7 +83,7 @@ export async function PUT(
 // DELETE /api/programs/[id]/review-criteria/[criteriaId]
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string; criteriaId: string } }
+  { params }: { params: Promise<{ id: string; criteriaId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -94,7 +94,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { criteriaId } = params
+    const { criteriaId } = await params
 
     // Delete review criterion
     const { error } = await supabase

@@ -5,7 +5,7 @@ import type { Database } from '@/types/database.types'
 // GET /api/reviewers/[reviewerId]/expertise
 export async function GET(
   request: Request,
-  { params }: { params: { reviewerId: string } }
+  { params }: { params: Promise<{ reviewerId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewerId } = params
+    const { reviewerId } = await params
 
     // Get reviewer expertise
     const { data: expertise, error } = await supabase
@@ -43,7 +43,7 @@ export async function GET(
 // POST /api/reviewers/[reviewerId]/expertise
 export async function POST(
   request: Request,
-  { params }: { params: { reviewerId: string } }
+  { params }: { params: Promise<{ reviewerId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -54,7 +54,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewerId } = params
+    const { reviewerId } = await params
     const body = await request.json()
 
     // Check if user can modify this expertise (admin or self)
@@ -102,7 +102,7 @@ export async function POST(
 // PUT /api/reviewers/[reviewerId]/expertise
 export async function PUT(
   request: Request,
-  { params }: { params: { reviewerId: string } }
+  { params }: { params: Promise<{ reviewerId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -113,7 +113,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewerId } = params
+    const { reviewerId } = await params
     const { expertiseId, ...updates } = await request.json()
 
     if (!expertiseId) {
@@ -167,7 +167,7 @@ export async function PUT(
 // DELETE /api/reviewers/[reviewerId]/expertise/[expertiseId]
 export async function DELETE(
   request: Request,
-  { params }: { params: { reviewerId: string; expertiseId: string } }
+  { params }: { params: Promise<{ reviewerId: string; expertiseId: string }> }
 ) {
   const supabase = await createClient()
 
@@ -178,7 +178,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewerId, expertiseId } = params
+    const { reviewerId, expertiseId } = await params
 
     // Check if user can modify this expertise (admin or self)
     const { data: profile } = await supabase
