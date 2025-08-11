@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
-  }
   public: {
     Tables: {
       announcements: {
@@ -775,89 +770,6 @@ export type Database = {
           },
         ]
       }
-      question_libraries: {
-        Row: {
-          created_at: string | null
-          created_by: string
-          description: string | null
-          id: string
-          is_public: boolean | null
-          name: string
-          tags: string[] | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          created_by: string
-          description?: string | null
-          id?: string
-          is_public?: boolean | null
-          name: string
-          tags?: string[] | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string
-          description?: string | null
-          id?: string
-          is_public?: boolean | null
-          name?: string
-          tags?: string[] | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "question_libraries_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      question_library_templates: {
-        Row: {
-          added_at: string | null
-          id: string
-          library_id: string
-          notes: string | null
-          order_index: number
-          template_id: string
-        }
-        Insert: {
-          added_at?: string | null
-          id?: string
-          library_id: string
-          notes?: string | null
-          order_index?: number
-          template_id: string
-        }
-        Update: {
-          added_at?: string | null
-          id?: string
-          library_id?: string
-          notes?: string | null
-          order_index?: number
-          template_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "question_library_templates_library_id_fkey"
-            columns: ["library_id"]
-            isOneToOne: false
-            referencedRelation: "question_libraries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "question_library_templates_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "question_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       question_templates: {
         Row: {
           allow_other: boolean | null
@@ -1002,6 +914,357 @@ export type Database = {
           },
         ]
       }
+      review_criteria: {
+        Row: {
+          allow_na: boolean | null
+          category: string | null
+          created_at: string | null
+          description: string | null
+          examples: Json | null
+          exclude_from_total: boolean | null
+          id: string
+          is_active: boolean | null
+          is_required: boolean | null
+          max_score: number | null
+          min_score: number | null
+          name: string
+          order_index: number | null
+          program_id: string
+          rubric_guidelines: Json | null
+          scoring_type: Database["public"]["Enums"]["scoring_type"] | null
+          updated_at: string | null
+          weight: number | null
+        }
+        Insert: {
+          allow_na?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          examples?: Json | null
+          exclude_from_total?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          max_score?: number | null
+          min_score?: number | null
+          name: string
+          order_index?: number | null
+          program_id: string
+          rubric_guidelines?: Json | null
+          scoring_type?: Database["public"]["Enums"]["scoring_type"] | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Update: {
+          allow_na?: boolean | null
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          examples?: Json | null
+          exclude_from_total?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          is_required?: boolean | null
+          max_score?: number | null
+          min_score?: number | null
+          name?: string
+          order_index?: number | null
+          program_id?: string
+          rubric_guidelines?: Json | null
+          scoring_type?: Database["public"]["Enums"]["scoring_type"] | null
+          updated_at?: string | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_criteria_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_criteria_templates: {
+        Row: {
+          category: Database["public"]["Enums"]["template_category"]
+          created_at: string | null
+          created_by: string | null
+          criteria_json: Json
+          description: string | null
+          id: string
+          is_public: boolean | null
+          name: string
+          tags: string[] | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["template_category"]
+          created_at?: string | null
+          created_by?: string | null
+          criteria_json: Json
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          name: string
+          tags?: string[] | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["template_category"]
+          created_at?: string | null
+          created_by?: string | null
+          criteria_json?: Json
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          name?: string
+          tags?: string[] | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_criteria_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_scores: {
+        Row: {
+          comments: string | null
+          confidence_level: number | null
+          created_at: string | null
+          criteria_id: string
+          id: string
+          is_na: boolean | null
+          normalized_score: number | null
+          rationale: string | null
+          review_id: string
+          score: number | null
+          time_spent_seconds: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          comments?: string | null
+          confidence_level?: number | null
+          created_at?: string | null
+          criteria_id: string
+          id?: string
+          is_na?: boolean | null
+          normalized_score?: number | null
+          rationale?: string | null
+          review_id: string
+          score?: number | null
+          time_spent_seconds?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          comments?: string | null
+          confidence_level?: number | null
+          created_at?: string | null
+          criteria_id?: string
+          id?: string
+          is_na?: boolean | null
+          normalized_score?: number | null
+          rationale?: string | null
+          review_id?: string
+          score?: number | null
+          time_spent_seconds?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_scores_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "review_criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_scores_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_settings: {
+        Row: {
+          allow_abstention: boolean | null
+          allow_reviewer_comments: boolean | null
+          allow_reviewer_discussion: boolean | null
+          auto_calculate_score: boolean | null
+          calibration_threshold: number | null
+          conflict_resolution: string | null
+          created_at: string | null
+          enable_calibration: boolean | null
+          id: string
+          max_reviews_allowed: number | null
+          min_feedback_length: number | null
+          min_reviews_required: number | null
+          notify_on_review_complete: boolean | null
+          program_id: string
+          require_written_feedback: boolean | null
+          review_deadline_days: number | null
+          score_threshold_accept: number | null
+          score_threshold_reject: number | null
+          score_threshold_waitlist_max: number | null
+          score_threshold_waitlist_min: number | null
+          scoring_method: Database["public"]["Enums"]["scoring_method"] | null
+          show_other_reviews: boolean | null
+          show_scores_to_applicants: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          allow_abstention?: boolean | null
+          allow_reviewer_comments?: boolean | null
+          allow_reviewer_discussion?: boolean | null
+          auto_calculate_score?: boolean | null
+          calibration_threshold?: number | null
+          conflict_resolution?: string | null
+          created_at?: string | null
+          enable_calibration?: boolean | null
+          id?: string
+          max_reviews_allowed?: number | null
+          min_feedback_length?: number | null
+          min_reviews_required?: number | null
+          notify_on_review_complete?: boolean | null
+          program_id: string
+          require_written_feedback?: boolean | null
+          review_deadline_days?: number | null
+          score_threshold_accept?: number | null
+          score_threshold_reject?: number | null
+          score_threshold_waitlist_max?: number | null
+          score_threshold_waitlist_min?: number | null
+          scoring_method?: Database["public"]["Enums"]["scoring_method"] | null
+          show_other_reviews?: boolean | null
+          show_scores_to_applicants?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          allow_abstention?: boolean | null
+          allow_reviewer_comments?: boolean | null
+          allow_reviewer_discussion?: boolean | null
+          auto_calculate_score?: boolean | null
+          calibration_threshold?: number | null
+          conflict_resolution?: string | null
+          created_at?: string | null
+          enable_calibration?: boolean | null
+          id?: string
+          max_reviews_allowed?: number | null
+          min_feedback_length?: number | null
+          min_reviews_required?: number | null
+          notify_on_review_complete?: boolean | null
+          program_id?: string
+          require_written_feedback?: boolean | null
+          review_deadline_days?: number | null
+          score_threshold_accept?: number | null
+          score_threshold_reject?: number | null
+          score_threshold_waitlist_max?: number | null
+          score_threshold_waitlist_min?: number | null
+          scoring_method?: Database["public"]["Enums"]["scoring_method"] | null
+          show_other_reviews?: boolean | null
+          show_scores_to_applicants?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_settings_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: true
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviewer_expertise: {
+        Row: {
+          average_review_time_minutes: number | null
+          average_score_given: number | null
+          certifications: string[] | null
+          consistency_score: number | null
+          created_at: string | null
+          expertise_area: string
+          id: string
+          is_active: boolean | null
+          last_review_date: string | null
+          notes: string | null
+          proficiency_level: Database["public"]["Enums"]["expertise_level"] | null
+          programs_reviewed: number | null
+          total_reviews_completed: number | null
+          updated_at: string | null
+          user_id: string
+          verified: boolean | null
+          verified_at: string | null
+          verified_by: string | null
+          years_experience: number | null
+        }
+        Insert: {
+          average_review_time_minutes?: number | null
+          average_score_given?: number | null
+          certifications?: string[] | null
+          consistency_score?: number | null
+          created_at?: string | null
+          expertise_area: string
+          id?: string
+          is_active?: boolean | null
+          last_review_date?: string | null
+          notes?: string | null
+          proficiency_level?: Database["public"]["Enums"]["expertise_level"] | null
+          programs_reviewed?: number | null
+          total_reviews_completed?: number | null
+          updated_at?: string | null
+          user_id: string
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
+          years_experience?: number | null
+        }
+        Update: {
+          average_review_time_minutes?: number | null
+          average_score_given?: number | null
+          certifications?: string[] | null
+          consistency_score?: number | null
+          created_at?: string | null
+          expertise_area?: string
+          id?: string
+          is_active?: boolean | null
+          last_review_date?: string | null
+          notes?: string | null
+          proficiency_level?: Database["public"]["Enums"]["expertise_level"] | null
+          programs_reviewed?: number | null
+          total_reviews_completed?: number | null
+          updated_at?: string | null
+          user_id?: string
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
+          years_experience?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviewer_expertise_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviewer_expertise_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           assignment_id: string | null
@@ -1093,96 +1356,54 @@ export type Database = {
         Args: { p_program_id: string }
         Returns: undefined
       }
-      calculate_application_completion: {
-        Args: { app_id: string }
+      auto_assign_reviewers_by_expertise: {
+        Args: { 
+          p_program_id: string
+          p_max_assignments?: number 
+        }
+        Returns: number
+      }
+      calculate_consensus_score: {
+        Args: { p_application_id: string }
+        Returns: number
+      }
+      calculate_criteria_score: {
+        Args: { 
+          p_review_id: string
+          p_criteria_id: string 
+        }
+        Returns: number
+      }
+      calculate_review_score: {
+        Args: { p_review_id: string }
         Returns: number
       }
       can_delete_program: {
         Args: { p_program_id: string }
         Returns: boolean
       }
-      create_question_from_template: {
-        Args: {
-          p_program_id: string
+      copy_review_template: {
+        Args: { 
           p_template_id: string
-          p_category_id?: string
-          p_order_index?: number
-          p_required?: boolean
-        }
-        Returns: string
-      }
-      duplicate_program_questions: {
-        Args: {
-          source_program_id: string
-          target_program_id: string
-          include_responses?: boolean
-        }
-        Returns: number
-      }
-      export_application_responses: {
-        Args: { app_id: string }
-        Returns: Json
-      }
-      find_duplicate_files: {
-        Args: { hash: string }
-        Returns: {
-          document_id: string
-          file_name: string
-          uploaded_at: string
-        }[]
-      }
-      generate_file_hash: {
-        Args: { file_content: string }
-        Returns: string
-      }
-      get_application_documents: {
-        Args: { app_id: string; question_id?: string }
-        Returns: {
-          document_id: string
-          file_name: string
-          file_type: string
-          file_size: number
-          file_url: string
-          document_category: string
-          uploaded_at: string
-          version: number
-        }[]
-      }
-      get_application_progress: {
-        Args: { app_id: string }
-        Returns: {
-          category_title: string
-          total_questions: number
-          required_questions: number
-          completed_questions: number
-          completion_percentage: number
-        }[]
-      }
-      get_incomplete_questions: {
-        Args: { app_id: string }
-        Returns: {
-          question_id: string
-          category_title: string
-          question_text: string
-          question_type: Database["public"]["Enums"]["question_type"]
-          required: boolean
-          has_response: boolean
-        }[]
-      }
-      has_role: {
-        Args: {
-          user_id: string
-          role: Database["public"]["Enums"]["user_role"]
+          p_program_id: string 
         }
         Returns: boolean
       }
-      is_program_admin: {
-        Args: { user_id: string; program_id: string }
-        Returns: boolean
-      }
-      migrate_application_responses: {
-        Args: { app_id?: string }
+      get_reviewer_consistency: {
+        Args: { p_reviewer_id: string }
         Returns: number
+      }
+      normalize_review_scores: {
+        Args: { p_program_id: string }
+        Returns: undefined
+      }
+      rank_applications_by_score: {
+        Args: { p_program_id: string }
+        Returns: {
+          application_id: string
+          average_score: number
+          rank: number
+        }[]
       }
       search_question_templates: {
         Args: {
@@ -1206,16 +1427,8 @@ export type Database = {
           created_at: string
         }[]
       }
-      track_document_access: {
-        Args: { doc_id: string }
-        Returns: undefined
-      }
       unarchive_program: {
         Args: { p_program_id: string }
-        Returns: undefined
-      }
-      update_application_review_stats: {
-        Args: { app_id: string }
         Returns: undefined
       }
       update_security_config_status: {
@@ -1236,6 +1449,7 @@ export type Database = {
         | "rejected"
         | "waitlisted"
         | "withdrawn"
+      expertise_level: "beginner" | "intermediate" | "advanced" | "expert"
       participant_status:
         | "confirmed"
         | "declined"
@@ -1280,6 +1494,27 @@ export type Database = {
         | "json"
         | "file_url"
       review_status: "not_started" | "in_progress" | "completed"
+      scoring_method:
+        | "average"
+        | "weighted_average"
+        | "median"
+        | "consensus"
+        | "highest"
+        | "lowest"
+      scoring_type:
+        | "numeric"
+        | "yes_no"
+        | "pass_fail"
+        | "letter_grade"
+        | "percentage"
+      template_category:
+        | "workshop"
+        | "conference"
+        | "hackathon"
+        | "fellowship"
+        | "research"
+        | "training"
+        | "competition"
       user_role:
         | "super_admin"
         | "program_admin"
@@ -1294,192 +1529,82 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+  PublicTableNameOrOptions extends
+    | keyof (Database["public"]["Tables"] & Database["public"]["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
+    : never = never
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
+  : PublicTableNameOrOptions extends keyof (Database["public"]["Tables"] &
+      Database["public"]["Views"])
+  ? (Database["public"]["Tables"] &
+      Database["public"]["Views"])[PublicTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
     : never
+  : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  PublicTableNameOrOptions extends
+    | keyof Database["public"]["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
+  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
+  ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
     : never
+  : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+  PublicTableNameOrOptions extends
+    | keyof Database["public"]["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
+  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
+  ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
     : never
+  : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      application_status: [
-        "draft",
-        "submitted",
-        "under_review",
-        "accepted",
-        "rejected",
-        "waitlisted",
-        "withdrawn",
-      ],
-      participant_status: [
-        "confirmed",
-        "declined",
-        "no_show",
-        "completed",
-        "dropped_out",
-      ],
-      program_status: [
-        "draft",
-        "published",
-        "applications_open",
-        "applications_closed",
-        "in_review",
-        "selections_made",
-        "active",
-        "completed",
-        "cancelled",
-      ],
-      question_category_type: [
-        "personal_info",
-        "background",
-        "experience",
-        "essays",
-        "preferences",
-        "documents",
-        "custom",
-      ],
-      question_type: [
-        "text",
-        "textarea",
-        "select",
-        "multi_select",
-        "checkbox",
-        "file",
-        "number",
-        "date",
-        "email",
-        "url",
-        "phone",
-      ],
-      response_value_type: [
-        "text",
-        "number",
-        "date",
-        "boolean",
-        "json",
-        "file_url",
-      ],
-      review_status: ["not_started", "in_progress", "completed"],
-      user_role: [
-        "super_admin",
-        "program_admin",
-        "instructor",
-        "reviewer",
-        "applicant",
-        "participant",
-      ],
-    },
-  },
-} as const
+  PublicEnumNameOrOptions extends
+    | keyof Database["public"]["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof Database["public"]["Enums"]
+  ? Database["public"]["Enums"][PublicEnumNameOrOptions]
+  : never
