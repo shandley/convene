@@ -2,10 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Database } from '@/types/database.types'
 
-// GET /api/reviews/[reviewId]/scores
+// GET /api/reviews/[id]/scores
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ reviewId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewId } = await params
+    const { id: reviewId } = await params
 
     // Get review scores with criteria details
     const { data: scores, error } = await supabase
@@ -43,11 +43,11 @@ export async function GET(
   }
 }
 
-// POST /api/reviews/[reviewId]/scores
+// POST /api/reviews/[id]/scores
 // Submit or update scores for a review
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ reviewId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -58,7 +58,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewId } = await params
+    const { id: reviewId } = await params
     const { scores } = await request.json()
 
     if (!scores || !Array.isArray(scores)) {
@@ -68,28 +68,22 @@ export async function POST(
       )
     }
 
-    // Verify reviewer has access to this review
-    const { data: review, error: reviewError } = await supabase
-      .from('reviews')
+    // Verify reviewer has access to this review assignment
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('review_assignments')
       .select('id, reviewer_id, application_id')
       .eq('id', reviewId)
       .single()
 
-    if (reviewError || !review) {
+    if (assignmentError || !assignment) {
       return NextResponse.json(
-        { error: 'Review not found' },
+        { error: 'Review assignment not found' },
         { status: 404 }
       )
     }
 
     // Check if user is the assigned reviewer
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single()
-
-    if (review.reviewer_id !== profile?.id) {
+    if (assignment.reviewer_id !== user.id) {
       return NextResponse.json(
         { error: 'You are not authorized to score this review' },
         { status: 403 }
@@ -124,22 +118,22 @@ export async function POST(
     // Calculate total weighted score for the review
     const { data: weightedScore, error: calcError } = await supabase
       .rpc('calculate_application_weighted_score', {
-        p_application_id: review.application_id
+        p_application_id: assignment.application_id
       })
 
     if (calcError) {
       console.error('Error calculating weighted score:', calcError)
     }
 
-    // Update review status to in_progress or completed
+    // Update review assignment status to in_progress or completed
     const allCriteriaScored = scores.every((s: any) => s.raw_score !== null)
     const newStatus = allCriteriaScored ? 'completed' : 'in_progress'
 
     const { error: statusError } = await supabase
-      .from('reviews')
+      .from('review_assignments')
       .update({
         status: newStatus,
-        submitted_at: allCriteriaScored ? new Date().toISOString() : null
+        completed_at: allCriteriaScored ? new Date().toISOString() : null
       })
       .eq('id', reviewId)
 
@@ -163,11 +157,11 @@ export async function POST(
   }
 }
 
-// DELETE /api/reviews/[reviewId]/scores
+// DELETE /api/reviews/[id]/scores
 // Clear all scores for a review
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ reviewId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient()
 
@@ -178,30 +172,24 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reviewId } = await params
+    const { id: reviewId } = await params
 
-    // Verify reviewer has access to this review
-    const { data: review, error: reviewError } = await supabase
-      .from('reviews')
+    // Verify reviewer has access to this review assignment
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('review_assignments')
       .select('id, reviewer_id')
       .eq('id', reviewId)
       .single()
 
-    if (reviewError || !review) {
+    if (assignmentError || !assignment) {
       return NextResponse.json(
-        { error: 'Review not found' },
+        { error: 'Review assignment not found' },
         { status: 404 }
       )
     }
 
     // Check if user is the assigned reviewer
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single()
-
-    if (review.reviewer_id !== profile?.id) {
+    if (assignment.reviewer_id !== user.id) {
       return NextResponse.json(
         { error: 'You are not authorized to modify this review' },
         { status: 403 }
@@ -219,12 +207,12 @@ export async function DELETE(
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Reset review status
+    // Reset review assignment status
     const { error: statusError } = await supabase
-      .from('reviews')
+      .from('review_assignments')
       .update({
         status: 'not_started',
-        submitted_at: null
+        completed_at: null
       })
       .eq('id', reviewId)
 

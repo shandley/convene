@@ -4,11 +4,11 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth/context'
-import { LogOut, User, Settings, Search, Calendar } from 'lucide-react'
+import { LogOut, User, Settings, Search, Calendar, ClipboardCheck } from 'lucide-react'
 import { useState } from 'react'
 
 export function Navigation() {
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut, hasRole } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -68,6 +68,18 @@ export function Navigation() {
                   <Calendar className="h-4 w-4" />
                   My Programs
                 </Link>
+                
+                {hasRole('reviewer') && (
+                  <Link
+                    href="/reviews"
+                    className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-blue-600 ${
+                      isActive('/reviews') ? 'text-blue-600' : 'text-gray-700'
+                    }`}
+                  >
+                    <ClipboardCheck className="h-4 w-4" />
+                    Reviews
+                  </Link>
+                )}
                 
                 <Link
                   href="/applications"
@@ -188,6 +200,20 @@ export function Navigation() {
                   >
                     My Programs
                   </Link>
+                  
+                  {hasRole('reviewer') && (
+                    <Link
+                      href="/reviews"
+                      className={`block px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+                        isActive('/reviews') 
+                          ? 'bg-blue-100 text-blue-600' 
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Reviews
+                    </Link>
+                  )}
                   
                   <Link
                     href="/applications"
