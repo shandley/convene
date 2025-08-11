@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review System API Tester</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8fafc;
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .status.success { background-color: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .status.error { background-color: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .status.info { background-color: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .status.warning { background-color: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .auth-section {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            margin: 5px 0 15px 0;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .test-results {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .summary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .endpoint-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .endpoint-section h4 {
+            margin: 0 0 10px 0;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .method-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .method-get { background: #dcfdf7; color: #065f46; }
+        .method-post { background: #fef3c7; color: #92400e; }
+        .method-put { background: #dbeafe; color: #1e40af; }
+        .method-delete { background: #fecaca; color: #991b1b; }
+        
+        .json-display {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔬 Review System API Tester</h1>
+            <p>Test the Review Configuration & Scoring System API endpoints with proper authentication</p>
+        </div>
+        
+        <div class="auth-section">
+            <h3>🔐 Authentication Setup</h3>
+            <label>
+                Environment:
+                <select id="environment" onchange="updateConfig()">
+                    <option value="local">Local (localhost:3000)</option>
+                    <option value="production">Production (workshop-adminstration-site.vercel.app)</option>
+                </select>
+            </label>
+            
+            <label>
+                Email:
+                <input type="email" id="email" value="researcher@university.edu" placeholder="Enter test email">
+            </label>
+            
+            <label>
+                Password:
+                <input type="password" id="password" value="researcher123" placeholder="Enter password">
+            </label>
+            
+            <button onclick="authenticate()" id="authBtn">🔑 Authenticate</button>
+            
+            <div id="authStatus"></div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="testReviewSettings()" id="settingsBtn" disabled>📋 Test Review Settings</button>
+            <button onclick="testReviewCriteria()" id="criteriaBtn" disabled>🎯 Test Review Criteria</button>
+            <button onclick="testReviewTemplates()" id="templatesBtn" disabled>📝 Test Review Templates</button>
+            <button onclick="testReviewStats()" id="statsBtn" disabled>📊 Test Review Stats</button>
+            <button onclick="runAllTests()" id="allTestsBtn" disabled>🚀 Run All Tests</button>
+            <button onclick="clearResults()">🗑️ Clear Results</button>
+        </div>
+        
+        <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div class="test-results" id="results">
+            <p><em>Authentication required. Please sign in to start testing.</em></p>
+        </div>
+        
+        <div class="summary" id="summary" style="display: none;">
+            <h3>📈 Test Summary</h3>
+            <div id="summaryContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        let CONFIG = {
+            SUPABASE_URL: 'https://mfwionbthxrjauwhvwcqw.supabase.co',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1md2lvbmJ0aHhyamF1d2h2d2NxdyIsInJvbGUiOiJhbm9uIiwiZXhwIjo0ODc4MzQ5MDgyfQ.JhGSMJntOtWt7cEAKQFHrmLHpqLU1JcXU8k78lbhFLs',
+            API_BASE: 'http://localhost:3000/api'
+        };
+
+        // Global state
+        let supabase;
+        let isAuthenticated = false;
+        let testResults = { passed: 0, failed: 0, errors: [] };
+        let testProgramId = null;
+        let currentUser = null;
+
+        // Initialize Supabase client
+        function initSupabase() {
+            supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+        }
+
+        // Update configuration based on environment
+        function updateConfig() {
+            const env = document.getElementById('environment').value;
+            CONFIG.API_BASE = env === 'production' 
+                ? 'https://workshop-adminstration-site.vercel.app/api'
+                : 'http://localhost:3000/api';
+            
+            log(`Environment switched to: ${env}`, 'info');
+            log(`API Base: ${CONFIG.API_BASE}`, 'info');
+        }
+
+        // Logging functions
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const statusClass = type;
+            const icon = {
+                success: '✅',
+                error: '❌',
+                info: 'ℹ️',
+                warning: '⚠️'
+            }[type] || 'ℹ️';
+            
+            results.innerHTML += `
+                <div class="status ${statusClass}">
+                    <strong>${icon} [${timestamp}]</strong> ${message}
+                </div>
+            `;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('summary').style.display = 'none';
+            testResults = { passed: 0, failed: 0, errors: [] };
+        }
+
+        // Authentication
+        async function authenticate() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const authBtn = document.getElementById('authBtn');
+            
+            if (!email || !password) {
+                log('Please enter both email and password', 'error');
+                return;
+            }
+            
+            authBtn.disabled = true;
+            authBtn.textContent = '🔄 Authenticating...';
+            
+            try {
+                log('Attempting to authenticate...', 'info');
+                
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    throw new Error(error.message);
+                }
+
+                if (!data.session || !data.user) {
+                    throw new Error('No session or user returned from authentication');
+                }
+
+                currentUser = data.user;
+                isAuthenticated = true;
+                
+                log(`✅ Authenticated successfully as ${data.user.email}`, 'success');
+                log(`User ID: ${data.user.id}`, 'info');
+                log(`Session expires: ${new Date(data.session.expires_at * 1000).toLocaleString()}`, 'info');
+                
+                // Enable test buttons
+                ['settingsBtn', 'criteriaBtn', 'templatesBtn', 'statsBtn', 'allTestsBtn'].forEach(id => {
+                    document.getElementById(id).disabled = false;
+                });
+                
+                authBtn.textContent = '✅ Authenticated';
+                authBtn.style.background = '#10b981';
+                
+                // Setup test data
+                await setupTestData();
+                
+            } catch (error) {
+                log(`Authentication failed: ${error.message}`, 'error');
+                testResults.failed++;
+                testResults.errors.push('Authentication failed');
+            } finally {
+                authBtn.disabled = false;
+                if (!isAuthenticated) {
+                    authBtn.textContent = '🔑 Authenticate';
+                }
+            }
+        }
+
+        // Setup test data
+        async function setupTestData() {
+            try {
+                log('Setting up test data...', 'info');
+                
+                // Get existing programs
+                const { data: programs } = await supabase
+                    .from('programs')
+                    .select('id, title')
+                    .limit(1);
+
+                if (programs && programs.length > 0) {
+                    testProgramId = programs[0].id;
+                    log(`Using existing program: ${programs[0].title} (ID: ${testProgramId})`, 'success');
+                } else {
+                    // Create a test program
+                    const { data: newProgram, error } = await supabase
+                        .from('programs')
+                        .insert({
+                            title: 'API Test Program',
+                            description: 'Program created for testing review system API endpoints',
+                            application_deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                            status: 'open'
+                        })
+                        .select()
+                        .single();
+
+                    if (error) {
+                        throw new Error(`Failed to create test program: ${error.message}`);
+                    }
+
+                    testProgramId = newProgram.id;
+                    log(`Created test program: ${newProgram.title} (ID: ${testProgramId})`, 'success');
+                }
+                
+            } catch (error) {
+                log(`Failed to setup test data: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // Make authenticated API requests
+        async function makeRequest(endpoint, options = {}) {
+            if (!isAuthenticated) {
+                throw new Error('Not authenticated');
+            }
+
+            const url = `${CONFIG.API_BASE}${endpoint}`;
+            log(`Making ${options.method || 'GET'} request to ${endpoint}`, 'info');
+            
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    credentials: 'include', // Important for cookie-based auth
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+
+                let responseData;
+                const responseText = await response.text();
+                
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch {
+                    responseData = { rawResponse: responseText };
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${responseData.error || responseData.rawResponse || 'Unknown error'}`);
+                }
+
+                return {
+                    status: response.status,
+                    data: responseData
+                };
+            } catch (error) {
+                log(`Request to ${endpoint} failed: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // Test functions
+        async function testReviewSettings() {
+            log('\n📋 Testing Review Settings API...', 'info');
+            
+            try {
+                // GET
+                const getResponse = await makeRequest(`/programs/${testProgramId}/review-settings`);
+                if (getResponse.data.data === null) {
+                    log('✅ GET review-settings: Returns null for new program', 'success');
+                    testResults.passed++;
+                } else {
+                    log('ℹ️ GET review-settings: Found existing settings', 'info');
+                    testResults.passed++;
+                }
+
+                // POST
+                const settingsData = {
+                    max_score: 100,
+                    passing_score: 70,
+                    review_window_days: 14,
+                    require_all_criteria: true,
+                    allow_reviewer_comments: true,
+                    show_scores_to_applicants: false
+                };
+
+                const postResponse = await makeRequest(`/programs/${testProgramId}/review-settings`, {
+                    method: 'POST',
+                    body: JSON.stringify(settingsData)
+                });
+
+                if (postResponse.status === 201) {
+                    log('✅ POST review-settings: Created successfully', 'success');
+                    testResults.passed++;
+                    displayJSON('Review Settings Created', postResponse.data.data);
+                } else {
+                    log(`❌ POST review-settings: Expected 201, got ${postResponse.status}`, 'error');
+                    testResults.failed++;
+                }
+
+                // PUT
+                const updateData = { max_score: 120, passing_score: 80 };
+                const putResponse = await makeRequest(`/programs/${testProgramId}/review-settings`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updateData)
+                });
+
+                if (putResponse.status === 200 && putResponse.data.data.max_score === 120) {
+                    log('✅ PUT review-settings: Updated successfully', 'success');
+                    testResults.passed++;
+                } else {
+                    log('❌ PUT review-settings: Update failed', 'error');
+                    testResults.failed++;
+                }
+
+            } catch (error) {
+                log(`❌ Review settings test failed: ${error.message}`, 'error');
+                testResults.failed++;
+                testResults.errors.push('Review settings test failed');
+            }
+        }
+
+        async function testReviewCriteria() {
+            log('\n🎯 Testing Review Criteria API...', 'info');
+            
+            try {
+                // GET
+                const getResponse = await makeRequest(`/programs/${testProgramId}/review-criteria`);
+                log('✅ GET review-criteria: Retrieved successfully', 'success');
+                testResults.passed++;
+
+                // POST
+                const criteriaData = {
+                    name: 'Technical Merit',
+                    description: 'Evaluation of technical approach and feasibility',
+                    weight: 0.4,
+                    max_score: 10,
+                    is_required: true,
+                    evaluation_guide: 'Consider innovation, technical soundness, and implementability'
+                };
+
+                const postResponse = await makeRequest(`/programs/${testProgramId}/review-criteria`, {
+                    method: 'POST',
+                    body: JSON.stringify(criteriaData)
+                });
+
+                if (postResponse.status === 201) {
+                    log('✅ POST review-criteria: Created successfully', 'success');
+                    testResults.passed++;
+                    
+                    const criteriaId = postResponse.data.data.id;
+                    displayJSON('Review Criteria Created', postResponse.data.data);
+
+                    // PUT
+                    const updateData = { weight: 0.5, max_score: 15 };
+                    const putResponse = await makeRequest(`/programs/${testProgramId}/review-criteria/${criteriaId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(updateData)
+                    });
+
+                    if (putResponse.status === 200 && putResponse.data.data.weight === 0.5) {
+                        log('✅ PUT review-criteria: Updated successfully', 'success');
+                        testResults.passed++;
+                    } else {
+                        log('❌ PUT review-criteria: Update failed', 'error');
+                        testResults.failed++;
+                    }
+
+                    // DELETE
+                    const deleteResponse = await makeRequest(`/programs/${testProgramId}/review-criteria/${criteriaId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (deleteResponse.status === 200) {
+                        log('✅ DELETE review-criteria: Deleted successfully', 'success');
+                        testResults.passed++;
+                    } else {
+                        log('❌ DELETE review-criteria: Delete failed', 'error');
+                        testResults.failed++;
+                    }
+                } else {
+                    log(`❌ POST review-criteria: Expected 201, got ${postResponse.status}`, 'error');
+                    testResults.failed++;
+                }
+
+            } catch (error) {
+                log(`❌ Review criteria test failed: ${error.message}`, 'error');
+                testResults.failed++;
+                testResults.errors.push('Review criteria test failed');
+            }
+        }
+
+        async function testReviewTemplates() {
+            log('\n📝 Testing Review Templates API...', 'info');
+            
+            try {
+                // GET
+                const getResponse = await makeRequest('/review-templates');
+                log('✅ GET review-templates: Retrieved successfully', 'success');
+                testResults.passed++;
+                displayJSON('Review Templates', getResponse.data.data);
+
+                // POST
+                const templateData = {
+                    name: 'Standard Research Review',
+                    description: 'Standard template for research proposal reviews',
+                    is_active: true,
+                    criteria: [
+                        {
+                            name: 'Research Merit',
+                            description: 'Significance and innovation of the research',
+                            weight: 0.3,
+                            max_score: 10,
+                            is_required: true,
+                            evaluation_guide: 'Assess novelty, impact, and scientific rigor'
+                        },
+                        {
+                            name: 'Methodology',
+                            description: 'Appropriateness of proposed methods',
+                            weight: 0.3,
+                            max_score: 10,
+                            is_required: true,
+                            evaluation_guide: 'Evaluate experimental design and analytical approaches'
+                        }
+                    ]
+                };
+
+                const postResponse = await makeRequest('/review-templates', {
+                    method: 'POST',
+                    body: JSON.stringify(templateData)
+                });
+
+                if (postResponse.status === 201) {
+                    log('✅ POST review-templates: Created successfully', 'success');
+                    testResults.passed++;
+                    
+                    const templateId = postResponse.data.data.id;
+                    displayJSON('Template Created', postResponse.data.data);
+
+                    // Test applying template
+                    const applyResponse = await makeRequest(`/programs/${testProgramId}/apply-template`, {
+                        method: 'POST',
+                        body: JSON.stringify({ template_id: templateId })
+                    });
+
+                    if (applyResponse.status === 200) {
+                        log('✅ POST apply-template: Template applied successfully', 'success');
+                        testResults.passed++;
+                    } else {
+                        log('❌ POST apply-template: Failed to apply template', 'error');
+                        testResults.failed++;
+                    }
+                } else {
+                    log(`❌ POST review-templates: Expected 201, got ${postResponse.status}`, 'error');
+                    testResults.failed++;
+                }
+
+            } catch (error) {
+                log(`❌ Review templates test failed: ${error.message}`, 'error');
+                testResults.failed++;
+                testResults.errors.push('Review templates test failed');
+            }
+        }
+
+        async function testReviewStats() {
+            log('\n📊 Testing Review Statistics API...', 'info');
+            
+            try {
+                const response = await makeRequest(`/programs/${testProgramId}/review-stats`);
+                
+                if (response.status === 200) {
+                    log('✅ GET review-stats: Retrieved successfully', 'success');
+                    testResults.passed++;
+                    
+                    const stats = response.data.data;
+                    displayJSON('Review Statistics', stats);
+                    
+                    log(`Stats Summary: ${stats.total_applications} applications, ${stats.completed_reviews} completed reviews, ${stats.pending_reviews} pending`, 'info');
+                } else {
+                    log(`❌ GET review-stats: Expected 200, got ${response.status}`, 'error');
+                    testResults.failed++;
+                }
+
+            } catch (error) {
+                log(`❌ Review statistics test failed: ${error.message}`, 'error');
+                testResults.failed++;
+                testResults.errors.push('Review statistics test failed');
+            }
+        }
+
+        // Utility functions
+        function displayJSON(title, data) {
+            const results = document.getElementById('results');
+            results.innerHTML += `
+                <div class="endpoint-section">
+                    <h4>${title}</h4>
+                    <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                </div>
+            `;
+        }
+
+        function updateProgress(current, total) {
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            
+            progressBar.style.display = 'block';
+            const percentage = (current / total) * 100;
+            progressFill.style.width = `${percentage}%`;
+            
+            if (current === total) {
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        function showSummary() {
+            const total = testResults.passed + testResults.failed;
+            const successRate = total > 0 ? ((testResults.passed / total) * 100).toFixed(1) : 0;
+            
+            const summaryContent = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold;">✅ ${testResults.passed}</div>
+                        <div>Passed</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold;">❌ ${testResults.failed}</div>
+                        <div>Failed</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold;">${successRate}%</div>
+                        <div>Success Rate</div>
+                    </div>
+                </div>
+                ${testResults.errors.length > 0 ? `
+                    <div style="margin-top: 15px;">
+                        <strong>Errors:</strong>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            ${testResults.errors.map(error => `<li>${error}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('summaryContent').innerHTML = summaryContent;
+            document.getElementById('summary').style.display = 'block';
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            if (!isAuthenticated) {
+                log('Please authenticate first', 'error');
+                return;
+            }
+            
+            clearResults();
+            log('🚀 Starting comprehensive test suite...', 'info');
+            
+            const tests = [
+                testReviewSettings,
+                testReviewCriteria,
+                testReviewTemplates,
+                testReviewStats
+            ];
+            
+            let completed = 0;
+            
+            for (const test of tests) {
+                try {
+                    await test();
+                } catch (error) {
+                    log(`Test failed: ${error.message}`, 'error');
+                }
+                completed++;
+                updateProgress(completed, tests.length);
+            }
+            
+            log('\n🎉 Test suite completed!', 'success');
+            showSummary();
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            initSupabase();
+            log('Review System API Tester loaded successfully', 'success');
+            log('Please authenticate to begin testing', 'info');
+        });
+    </script>
+</body>
+</html>

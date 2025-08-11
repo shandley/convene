@@ -78,7 +78,7 @@ export default function ProgramDetailPage() {
   }, [params.id])
 
   useEffect(() => {
-    // Check if user has already applied (only if authenticated)
+    // Check if user has already applied (only if authenticated and initialized)
     if (initialized && user && program) {
       checkUserApplication()
     }
@@ -107,9 +107,14 @@ export default function ProgramDetailPage() {
   }
 
   const checkUserApplication = async () => {
-    if (!user || !program) return
+    // Only check if we have an authenticated user and program
+    if (!initialized || !user || !program) {
+      console.log('Skipping application check - user not authenticated or program not loaded')
+      return
+    }
 
     try {
+      console.log('Checking user application for program:', program.id)
       const response = await fetch(`/api/applications?program_id=${program.id}`)
       if (response.ok) {
         const data = await response.json()
@@ -117,6 +122,10 @@ export default function ProgramDetailPage() {
         if (application) {
           setUserApplication(application)
         }
+      } else if (response.status === 401) {
+        console.log('User not authenticated for applications check')
+      } else {
+        console.log('Error checking applications:', response.status)
       }
     } catch (err) {
       // Silently fail - this is just for UI enhancement

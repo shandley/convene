@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getAuthCallbackURL } from '@/lib/utils/url'
 import type { User } from '@supabase/supabase-js'
 import type { Tables } from '@/types/database.types'
+import { debugAuthState } from './debug'
 
 interface AuthContextType {
   user: User | null
@@ -48,13 +49,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (error) {
           console.error('Error getting session:', error)
+          // Clear any stale session data on error
+          if (typeof window !== 'undefined') {
+            Object.keys(localStorage).forEach(key => {
+              if (key.startsWith('supabase.auth.')) {
+                localStorage.removeItem(key)
+              }
+            })
+          }
+          setUser(null)
+          setProfile(null)
           setLoading(false)
           setInitialized(true)
           clearTimeout(failsafeTimeout);
           return
         }
 
-        console.log('Initial session result:', session ? 'session found' : 'no session');
+        console.log('Initial session result:', session ? `session found for ${session.user?.email}` : 'no session');
+        
+        // Debug auth state in development
+        if (process.env.NODE_ENV === 'development') {
+          debugAuthState()
+        }
+        
         setUser(session?.user ?? null)
         
         if (session?.user) {
@@ -68,16 +85,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (isMounted) {
               if (profileError) {
                 console.error('Error fetching profile:', profileError)
+                setProfile(null)
               } else {
                 setProfile(profileData)
               }
             }
           } catch (err) {
             console.error('Exception fetching profile:', err)
+            setProfile(null)
           }
+        } else {
+          setProfile(null)
         }
       } catch (err) {
         console.error('Exception getting initial session:', err)
+        setUser(null)
+        setProfile(null)
       } finally {
         if (isMounted) {
           console.log('Setting loading to false from initial session');
@@ -97,6 +120,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         console.log('Auth state change:', event, session?.user?.email)
         
+        // Handle different auth events
+        if (event === 'SIGNED_OUT') {
+          console.log('User signed out - clearing all state')
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+          setInitialized(true)
+          return
+        }
+        
         // Always set loading to false and mark as initialized to ensure UI updates
         setLoading(false)
         setInitialized(true)
@@ -113,12 +146,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (isMounted) {
               if (profileError) {
                 console.error('Error fetching profile on auth change:', profileError)
+                setProfile(null)
               } else {
                 setProfile(profileData)
               }
             }
           } catch (err) {
             console.error('Exception fetching profile on auth change:', err)
+            setProfile(null)
           }
         } else if (isMounted) {
           setProfile(null)
@@ -201,7 +236,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    try {
+      console.log('Starting sign out process...')
+      
+      // Clear the user and profile state immediately to prevent UI issues
+      setUser(null)
+      setProfile(null)
+      
+      // Sign out from Supabase with proper cleanup
+      const { error } = await supabase.auth.signOut({ 
+        scope: 'global' // This ensures all sessions are cleared
+      })
+      
+      if (error) {
+        console.error('Error during sign out:', error)
+      }
+      
+      // Force clear any remaining local storage items related to auth
+      if (typeof window !== 'undefined') {
+        // Clear Supabase auth tokens from local storage
+        const keysToRemove: string[] = []
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('supabase.auth.') || key.includes('supabase-auth-token') || key.includes('supabase')) {
+            keysToRemove.push(key)
+          }
+        })
+        
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key)
+          console.log(`Removed localStorage key: ${key}`)
+        })
+        
+        // Also clear sessionStorage
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.startsWith('supabase') || key.includes('auth')) {
+            sessionStorage.removeItem(key)
+            console.log(`Removed sessionStorage key: ${key}`)
+          }
+        })
+      }
+      
+      console.log('Sign out completed successfully')
+    } catch (error) {
+      console.error('Exception during sign out:', error)
+      // Even if there's an error, clear the local state
+      setUser(null)
+      setProfile(null)
+    }
   }
 
   const hasRole = (role: string) => {

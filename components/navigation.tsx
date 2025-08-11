@@ -14,8 +14,15 @@ export function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const handleSignOut = async () => {
-    await signOut()
-    router.push('/')
+    try {
+      await signOut()
+      // Force a full page refresh to clear any remaining state
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Error during sign out:', error)
+      // Even if sign out fails, redirect to home
+      window.location.href = '/'
+    }
   }
 
   const isActive = (path: string) => {

@@ -8,9 +8,11 @@ export function createClient() {
     {
       auth: {
         flowType: 'pkce',
-        detectSessionInUrl: true, // Let the client handle automatic session detection
+        detectSessionInUrl: true,
         persistSession: true,
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        autoRefreshToken: true,
+        debug: process.env.NODE_ENV === 'development'
       }
     }
   )
