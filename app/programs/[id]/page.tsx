@@ -22,11 +22,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, MoreVertical, Archive, Trash2, Edit, FileText, Users } from 'lucide-react'
+import { ChevronLeft, MoreVertical, Archive, Trash2, Edit, FileText, Users, ClipboardList, BarChart3 } from 'lucide-react'
 import type { Tables } from '@/types/database.types'
+import { ReviewsTab } from '@/components/programs/reviews/reviews-tab'
 
 type ProgramWithDetails = Tables<'programs'> & {
   created_by_profile: {
@@ -301,63 +303,78 @@ export default function ProgramDetailsPage({ params }: ProgramDetailsPageProps) 
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Program Details */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-start mb-2">
-                  <CardTitle className="text-2xl">{program.title}</CardTitle>
-                  <Badge variant={getStatusVariant(program.status || 'draft')}>
-                    {program.status || 'draft'}
-                  </Badge>
-                </div>
-                <CardDescription className="text-base">
-                  {program.type} • {program.capacity} participants
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {program.description && (
-                  <div className="mb-6">
-                    <h3 className="font-semibold mb-2">Description</h3>
-                    <p className="text-gray-700 whitespace-pre-wrap">{program.description}</p>
-                  </div>
-                )}
-                
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <h4 className="font-semibold mb-1">Start Date</h4>
-                    <p className="text-gray-700">{new Date(program.start_date).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-1">End Date</h4>
-                    <p className="text-gray-700">{new Date(program.end_date).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-1">Application Deadline</h4>
-                    <p className="text-gray-700">{new Date(program.application_deadline).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-1">Location</h4>
-                    <p className="text-gray-700">{program.location || 'TBD'}</p>
-                  </div>
-                  {program.fee && (
-                    <div>
-                      <h4 className="font-semibold mb-1">Registration Fee</h4>
-                      <p className="text-gray-700">${program.fee}</p>
-                    </div>
-                  )}
-                  <div>
-                    <h4 className="font-semibold mb-1">Blind Review</h4>
-                    <p className="text-gray-700">{program.blind_review ? 'Enabled' : 'Disabled'}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        {/* Program Header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-start mb-2">
+            <h1 className="text-3xl font-bold">{program.title}</h1>
+            <Badge variant={getStatusVariant(program.status || 'draft')}>
+              {program.status || 'draft'}
+            </Badge>
           </div>
+          <p className="text-lg text-gray-600">
+            {program.type} • {program.capacity} participants • {new Date(program.start_date).toLocaleDateString()} - {new Date(program.end_date).toLocaleDateString()}
+          </p>
+        </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
+        {/* Tabs */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="applications">Applications</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+            <TabsTrigger value="participants">Participants</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+            <div className="grid gap-8 lg:grid-cols-3">
+              {/* Program Details */}
+              <div className="lg:col-span-2 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Program Details</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {program.description && (
+                      <div className="mb-6">
+                        <h3 className="font-semibold mb-2">Description</h3>
+                        <p className="text-gray-700 whitespace-pre-wrap">{program.description}</p>
+                      </div>
+                    )}
+                    
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <h4 className="font-semibold mb-1">Start Date</h4>
+                        <p className="text-gray-700">{new Date(program.start_date).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-1">End Date</h4>
+                        <p className="text-gray-700">{new Date(program.end_date).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-1">Application Deadline</h4>
+                        <p className="text-gray-700">{new Date(program.application_deadline).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-1">Location</h4>
+                        <p className="text-gray-700">{program.location || 'TBD'}</p>
+                      </div>
+                      {program.fee && (
+                        <div>
+                          <h4 className="font-semibold mb-1">Registration Fee</h4>
+                          <p className="text-gray-700">${program.fee}</p>
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="font-semibold mb-1">Blind Review</h4>
+                        <p className="text-gray-700">{program.blind_review ? 'Enabled' : 'Disabled'}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Sidebar */}
+              <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Program Statistics</CardTitle>
@@ -412,22 +429,51 @@ export default function ProgramDetailsPage({ params }: ProgramDetailsPageProps) 
               </Card>
             )}
 
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Created By</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <p className="font-medium">{program.created_by_profile?.full_name || 'Unknown'}</p>
+                      <p className="text-gray-600 text-sm">{program.created_by_profile?.email}</p>
+                      <p className="text-gray-500 text-sm">
+                        Created {new Date(program.created_at || '').toLocaleDateString()}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="applications">
             <Card>
-              <CardHeader>
-                <CardTitle>Created By</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p className="font-medium">{program.created_by_profile?.full_name || 'Unknown'}</p>
-                  <p className="text-gray-600 text-sm">{program.created_by_profile?.email}</p>
-                  <p className="text-gray-500 text-sm">
-                    Created {new Date(program.created_at || '').toLocaleDateString()}
-                  </p>
-                </div>
+              <CardContent className="p-8 text-center">
+                <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Applications Coming Soon</h3>
+                <p className="text-gray-500">Application management interface will be available in the next update.</p>
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="reviews">
+            <ReviewsTab 
+              programId={program.id} 
+              canManage={user ? program.created_by === user.id : false} 
+            />
+          </TabsContent>
+
+          <TabsContent value="participants">
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Participants Coming Soon</h3>
+                <p className="text-gray-500">Participant management interface will be available in the next update.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   )

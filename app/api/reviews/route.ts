@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
         assigned_at,
         deadline,
         completed_at,
-        program_id,
         application:applications(
           id,
           program_id,
@@ -63,9 +62,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (priority && priority !== 'all') {
-      query = query.eq('priority', priority)
-    }
+    // Priority is not in the schema, skip this filter
+    // if (priority && priority !== 'all') {
+    //   query = query.eq('priority', priority)
+    // }
 
     if (program) {
       query = query.eq('application.program_id', program)
