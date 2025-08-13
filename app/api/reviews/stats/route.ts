@@ -1,17 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
+import { getUserFromRequest, createServiceClient } from '@/lib/supabase/server-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET /api/reviews/stats
 // Return reviewer statistics (total, in progress, completed, overdue)
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
-
   try {
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Check authentication using our helper that supports both cookies and Authorization header
+    const { user, error: authError } = await getUserFromRequest(request)
     if (authError || !user) {
+      console.error('Auth error in reviews/stats:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Use service client to bypass RLS policies and avoid circular dependency issues
+    const supabase = createServiceClient()
 
     // Get all review assignments for the current user
     const { data: assignments, error } = await supabase

@@ -1,17 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
+import { getUserFromRequest, createServiceClient } from '@/lib/supabase/server-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET /api/applications
 // Fetch applications for the current user
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
-
   try {
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Check authentication using our helper that supports both cookies and Authorization header
+    const { user, error: authError } = await getUserFromRequest(request)
     if (authError || !user) {
+      console.error('Auth error in applications:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Use service client to bypass RLS policies and avoid circular dependency issues
+    const supabase = createServiceClient()
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams

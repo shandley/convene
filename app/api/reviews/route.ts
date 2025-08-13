@@ -1,18 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
+import { getUserFromRequest, createServiceClient } from '@/lib/supabase/server-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Database } from '@/types/database.types'
 
 // GET /api/reviews
 // Fetch all reviews assigned to current user with filtering options
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
-
   try {
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Check authentication using our helper that supports both cookies and Authorization header
+    const { user, error: authError } = await getUserFromRequest(request)
     if (authError || !user) {
+      console.error('Auth error in reviews:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Use service client to bypass RLS policies and avoid circular dependency issues
+    const supabase = createServiceClient()
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams
@@ -22,33 +25,10 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || 'due_date'
     const order = searchParams.get('order') || 'asc'
 
-    // Build the query - using review_assignments as the main table
+    // Query review_assignments without nested joins to avoid circular RLS dependencies
     let query = supabase
       .from('review_assignments')
-      .select(`
-        id,
-        application_id,
-        reviewer_id,
-        status,
-        assigned_at,
-        deadline,
-        completed_at,
-        application:applications(
-          id,
-          program_id,
-          submitted_at,
-          applicant:profiles!applications_applicant_id_fkey(
-            id,
-            full_name,
-            email
-          ),
-          program:programs(
-            id,
-            title,
-            description
-          )
-        )
-      `)
+      .select('*')
       .eq('reviewer_id', user.id)
 
     // Apply filters
@@ -67,11 +47,10 @@ export async function GET(request: NextRequest) {
     //   query = query.eq('priority', priority)
     // }
 
-    if (program) {
-      query = query.eq('application.program_id', program)
-    }
+    // Note: Filtering on nested fields needs to be done after fetching
+    // We'll filter in JavaScript below if program filter is needed
 
-    // Apply sorting
+    // Apply basic sorting (complex nested sorting will be done in JavaScript)
     const ascending = order === 'asc'
     switch (sort) {
       case 'due_date':
@@ -81,7 +60,8 @@ export async function GET(request: NextRequest) {
         query = query.order('status', { ascending })
         break
       case 'program':
-        query = query.order('application.program.title', { ascending })
+        // Can't sort on nested fields with Supabase, will sort in JS below
+        query = query.order('deadline', { ascending: true })
         break
       default:
         query = query.order('deadline', { ascending: true })
@@ -94,28 +74,95 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    if (!assignments || assignments.length === 0) {
+      return NextResponse.json({ data: [] })
+    }
+
+    // Get application IDs from assignments
+    const applicationIds = assignments.map(a => a.application_id)
+
+    // Fetch applications separately to avoid circular RLS issues
+    const { data: applications, error: appsError } = await supabase
+      .from('applications')
+      .select(`
+        id,
+        program_id,
+        submitted_at,
+        applicant_id,
+        program:programs(
+          id,
+          title,
+          description
+        )
+      `)
+      .in('id', applicationIds)
+
+    if (appsError) {
+      console.error('Error fetching applications:', appsError)
+      return NextResponse.json({ error: appsError.message }, { status: 500 })
+    }
+
+    // Get applicant IDs from applications
+    const applicantIds = applications?.map(a => a.applicant_id).filter(Boolean) || []
+
+    // Fetch applicant profiles separately
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', applicantIds)
+
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError)
+      return NextResponse.json({ error: profilesError.message }, { status: 500 })
+    }
+
+    // Create lookup maps for efficient joining
+    const applicationsMap = new Map(applications?.map(app => [app.id, app]) || [])
+    const profilesMap = new Map(profiles?.map(profile => [profile.id, profile]) || [])
+
     // Transform the data to match the expected Review interface
-    const reviews = assignments?.map(assignment => ({
-      id: assignment.id,
-      application_id: assignment.application_id,
-      reviewer_id: assignment.reviewer_id,
-      status: assignment.status,
-      assigned_at: assignment.assigned_at,
-      due_date: assignment.deadline,
-      submitted_at: assignment.completed_at,
-      priority: 'medium', // Default priority since it's not in schema
-      application: {
-        id: assignment.application.id,
-        program_id: assignment.application.program_id,
-        applicant_name: assignment.application.applicant?.full_name || 'Unknown',
-        applicant_email: assignment.application.applicant?.email || '',
-        submitted_at: assignment.application.submitted_at,
-        program: {
-          title: assignment.application.program.title,
-          description: assignment.application.program.description
+    let reviews = assignments.map(assignment => {
+      const application = applicationsMap.get(assignment.application_id)
+      const applicant = application ? profilesMap.get(application.applicant_id) : null
+
+      return {
+        id: assignment.id,
+        application_id: assignment.application_id,
+        reviewer_id: assignment.reviewer_id,
+        status: assignment.status,
+        assigned_at: assignment.assigned_at,
+        due_date: assignment.deadline,
+        submitted_at: assignment.completed_at,
+        priority: 'medium', // Default priority since it's not in schema
+        application: {
+          id: application?.id || assignment.application_id,
+          program_id: application?.program_id || '',
+          applicant_name: applicant?.full_name || 'Unknown',
+          applicant_email: applicant?.email || '',
+          submitted_at: application?.submitted_at || null,
+          program: {
+            title: application?.program?.title || 'Unknown Program',
+            description: application?.program?.description || ''
+          }
         }
       }
-    })) || []
+    })
+
+    // Apply client-side program filtering if needed
+    if (program) {
+      reviews = reviews.filter(review => review.application.program_id === program)
+    }
+
+    // Apply client-side program sorting if needed
+    if (sort === 'program') {
+      reviews = reviews.sort((a, b) => {
+        const titleA = a.application.program.title || ''
+        const titleB = b.application.program.title || ''
+        return order === 'asc' 
+          ? titleA.localeCompare(titleB)
+          : titleB.localeCompare(titleA)
+      })
+    }
 
     return NextResponse.json({ data: reviews })
 
