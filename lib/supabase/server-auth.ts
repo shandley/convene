@@ -6,18 +6,20 @@ export function createClientForRequest(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   
-  // Create a basic client
-  const client = createClient<Database>(supabaseUrl, supabaseKey)
-  
   // Check for Authorization header
   const authHeader = request.headers.get('authorization')
+  const headers: Record<string, string> = {}
+  
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7)
-    
-    // Set the auth header for requests
-    client.rest.headers.authorization = `Bearer ${token}`
-    client.auth.headers.authorization = `Bearer ${token}`
+    headers.authorization = authHeader
   }
+  
+  // Create client with auth header if present
+  const client = createClient<Database>(supabaseUrl, supabaseKey, {
+    global: {
+      headers
+    }
+  })
   
   return client
 }
