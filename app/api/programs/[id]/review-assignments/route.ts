@@ -105,7 +105,7 @@ export async function GET(
     const assignmentIds = assignmentsData.map(a => a.id)
     const { data: reviewsData, error: reviewsError } = await supabase
       .from('reviews')
-      .select('assignment_id, overall_score, submitted_at')
+      .select('assignment_id, overall_score, created_at')
       .in('assignment_id', assignmentIds)
 
     if (reviewsError) {
@@ -132,7 +132,7 @@ export async function GET(
       },
       review: reviewsData?.find(r => r.assignment_id === assignment.id) ? {
         overall_score: reviewsData.find(r => r.assignment_id === assignment.id)?.overall_score,
-        submitted_at: reviewsData.find(r => r.assignment_id === assignment.id)?.submitted_at
+        submitted_at: reviewsData.find(r => r.assignment_id === assignment.id)?.created_at
       } : undefined
     }))
 
