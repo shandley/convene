@@ -178,7 +178,7 @@ function ReviewDetailPageContent() {
     setSaving(true)
     setSaveErrors(null)
     
-    const result = await safeAsync(async () => {
+    try {
       // Save scores as draft (in_progress status)
       const scoresArray = Object.values(scores).filter(score => 
         score && typeof score.raw_score === 'number'
@@ -231,16 +231,18 @@ function ReviewDetailPageContent() {
         title: "Draft Saved",
         description: "Your review progress has been saved as a draft."
       })
-      setSaving(false)
-    }, undefined, (error: any) => {
+    } catch (error: any) {
+      console.error('Error saving draft:', error)
       setSaveErrors(error.message)
       toast({
         title: "Save Failed",
         description: error.message || "There was an error saving your draft. Please try again.",
         variant: "destructive"
       })
+    } finally {
+      // ALWAYS reset saving state
       setSaving(false)
-    })
+    }
   }
 
   const handleSubmitReview = async () => {
@@ -259,7 +261,7 @@ function ReviewDetailPageContent() {
     setSubmitting(true)
     setSaveErrors(null)
     
-    const result = await safeAsync(async () => {
+    try {
       // Prepare scores data for submission
       const scoresArray = Object.values(scores).map(score => ({
         criteria_id: score.criteria_id,
@@ -303,20 +305,20 @@ function ReviewDetailPageContent() {
         description: "Your review has been submitted successfully."
       })
 
-      // Reset submitting state before navigation to prevent UI conflicts
-      setSubmitting(false)
-      
-      // Use replace to prevent back button issues
+      // Navigate to reviews page
       router.replace('/reviews')
-    }, undefined, (error: any) => {
+    } catch (error: any) {
+      console.error('Error submitting review:', error)
       setSaveErrors(error.message)
       toast({
         title: "Submission Failed",
         description: error.message || "There was an error submitting your review. Please try again.",
         variant: "destructive"
       })
+    } finally {
+      // ALWAYS reset submitting state, no matter what happens
       setSubmitting(false)
-    })
+    }
   }
 
   if (authLoading || loading) {
