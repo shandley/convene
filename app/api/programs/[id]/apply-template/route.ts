@@ -29,8 +29,8 @@ export async function POST(
     // Call the database function to apply the template
     const { data, error } = await supabase
       .rpc('apply_review_template', {
-        p_program_id: programId,
-        p_template_id: templateId
+        program_id_param: programId,
+        template_id_param: templateId
       })
 
     if (error) {
