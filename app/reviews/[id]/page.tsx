@@ -231,6 +231,7 @@ function ReviewDetailPageContent() {
         title: "Draft Saved",
         description: "Your review progress has been saved as a draft."
       })
+      setSaving(false)
     }, undefined, (error: any) => {
       setSaveErrors(error.message)
       toast({
@@ -238,9 +239,8 @@ function ReviewDetailPageContent() {
         description: error.message || "There was an error saving your draft. Please try again.",
         variant: "destructive"
       })
+      setSaving(false)
     })
-    
-    setSaving(false)
   }
 
   const handleSubmitReview = async () => {
@@ -303,10 +303,11 @@ function ReviewDetailPageContent() {
         description: "Your review has been submitted successfully."
       })
 
-      // Use replace to prevent back button issues and don't reset submitting state
-      // since we're navigating away
+      // Reset submitting state before navigation to prevent UI conflicts
+      setSubmitting(false)
+      
+      // Use replace to prevent back button issues
       router.replace('/reviews')
-      return // Exit early to prevent finally block from executing
     }, undefined, (error: any) => {
       setSaveErrors(error.message)
       toast({
@@ -314,11 +315,8 @@ function ReviewDetailPageContent() {
         description: error.message || "There was an error submitting your review. Please try again.",
         variant: "destructive"
       })
-    })
-    
-    if (!result) {
       setSubmitting(false)
-    }
+    })
   }
 
   if (authLoading || loading) {
