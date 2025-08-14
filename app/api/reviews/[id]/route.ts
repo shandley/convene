@@ -118,13 +118,42 @@ export async function GET(
       return map
     }, {} as Record<string, any>) || {}
 
+    // Get application responses (answers to application questions)
+    const { data: responses, error: responsesError } = await supabase
+      .from('application_responses')
+      .select(`
+        id,
+        question_id,
+        response_text,
+        question:application_questions(
+          id,
+          question_text,
+          question_type,
+          display_order
+        )
+      `)
+      .eq('application_id', application.id)
+      .order('question:application_questions(display_order)', { ascending: true })
+
+    if (responsesError) {
+      console.error('Error fetching application responses:', responsesError)
+      // Don't fail the whole request if responses can't be fetched
+    }
+
+    // Transform responses into the expected format
+    const formattedResponses = responses?.map(r => ({
+      question: r.question?.question_text || 'Question',
+      answer: r.response_text || ''
+    })) || []
+
     // Reconstruct the assignment object with nested data for compatibility
     const assignmentWithNested = {
       ...assignment,
       application: {
         ...application,
         applicant: applicant,
-        program: program
+        program: program,
+        responses: formattedResponses
       }
     }
 

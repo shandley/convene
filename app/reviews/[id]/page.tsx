@@ -471,16 +471,18 @@ export default function ReviewDetailPage() {
                 
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-900">Application Responses</h4>
-                  {reviewData.assignment.application.responses?.map((response, index) => (
-                    <div key={index} className="space-y-2">
-                      <h5 className="text-sm font-medium text-gray-700">
-                        {response.question}
-                      </h5>
-                      <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
-                        {response.answer}
-                      </p>
-                    </div>
-                  )) || (
+                  {Array.isArray(reviewData.assignment.application.responses) && reviewData.assignment.application.responses.length > 0 ? (
+                    reviewData.assignment.application.responses.map((response, index) => (
+                      <div key={index} className="space-y-2">
+                        <h5 className="text-sm font-medium text-gray-700">
+                          {response.question}
+                        </h5>
+                        <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                          {response.answer}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
                     <p className="text-sm text-gray-500 italic">
                       No application responses available.
                     </p>
