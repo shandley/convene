@@ -136,7 +136,7 @@ export async function POST(
         .from('reviews')
         .insert({
           assignment_id: assignmentId,
-          overall_score: 0, // Will be calculated later
+          overall_score: 3, // Default to middle score (constraint requires 1-5)
           comments: '',
           strengths: '',
           weaknesses: '',
@@ -188,6 +188,21 @@ export async function POST(
 
     if (calcError) {
       console.error('Error calculating weighted score:', calcError)
+    }
+
+    // Update the review record with the calculated score (ensure it's within 1-5 range)
+    if (weightedScore) {
+      // Convert from percentage (0-100) to 1-5 scale
+      const scaledScore = Math.max(1, Math.min(5, Math.round((weightedScore / 100) * 4) + 1))
+      
+      const { error: updateReviewError } = await supabase
+        .from('reviews')
+        .update({ overall_score: scaledScore })
+        .eq('id', reviewId)
+      
+      if (updateReviewError) {
+        console.error('Error updating review overall score:', updateReviewError)
+      }
     }
 
     // Update review assignment status to in_progress or completed
