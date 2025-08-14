@@ -133,18 +133,23 @@ export async function GET(
         )
       `)
       .eq('application_id', application.id)
-      .order('question:application_questions(display_order)', { ascending: true })
 
     if (responsesError) {
       console.error('Error fetching application responses:', responsesError)
       // Don't fail the whole request if responses can't be fetched
     }
 
-    // Transform responses into the expected format
-    const formattedResponses = responses?.map(r => ({
+    // Sort responses by display_order and transform into the expected format
+    const sortedResponses = responses?.sort((a, b) => {
+      const orderA = a.question?.display_order || 0
+      const orderB = b.question?.display_order || 0
+      return orderA - orderB
+    }) || []
+    
+    const formattedResponses = sortedResponses.map(r => ({
       question: r.question?.question_text || 'Question',
       answer: r.response_text || ''
-    })) || []
+    }))
 
     // Reconstruct the assignment object with nested data for compatibility
     const assignmentWithNested = {
