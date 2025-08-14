@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -955,7 +955,6 @@ export type Database = {
           completed_at: string | null
           deadline: string | null
           id: string
-          program_id: string
           reviewer_id: string
           status: Database["public"]["Enums"]["review_status"] | null
         }
@@ -966,7 +965,6 @@ export type Database = {
           completed_at?: string | null
           deadline?: string | null
           id?: string
-          program_id: string
           reviewer_id: string
           status?: Database["public"]["Enums"]["review_status"] | null
         }
@@ -977,7 +975,6 @@ export type Database = {
           completed_at?: string | null
           deadline?: string | null
           id?: string
-          program_id?: string
           reviewer_id?: string
           status?: Database["public"]["Enums"]["review_status"] | null
         }
@@ -994,13 +991,6 @@ export type Database = {
             columns: ["assigned_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "review_assignments_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "programs"
             referencedColumns: ["id"]
           },
           {
@@ -1330,7 +1320,6 @@ export type Database = {
       }
       reviews: {
         Row: {
-          application_id: string
           assignment_id: string | null
           comments: string | null
           created_at: string | null
@@ -1338,15 +1327,11 @@ export type Database = {
           id: string
           overall_score: number | null
           recommendation: string | null
-          reviewer_id: string
-          status: string | null
           strengths: string | null
-          submitted_at: string | null
           updated_at: string | null
           weaknesses: string | null
         }
         Insert: {
-          application_id: string
           assignment_id?: string | null
           comments?: string | null
           created_at?: string | null
@@ -1354,15 +1339,11 @@ export type Database = {
           id?: string
           overall_score?: number | null
           recommendation?: string | null
-          reviewer_id: string
-          status?: string | null
           strengths?: string | null
-          submitted_at?: string | null
           updated_at?: string | null
           weaknesses?: string | null
         }
         Update: {
-          application_id?: string
           assignment_id?: string | null
           comments?: string | null
           created_at?: string | null
@@ -1370,33 +1351,16 @@ export type Database = {
           id?: string
           overall_score?: number | null
           recommendation?: string | null
-          reviewer_id?: string
-          status?: string | null
           strengths?: string | null
-          submitted_at?: string | null
           updated_at?: string | null
           weaknesses?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "reviews_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "applications"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "reviews_assignment_id_fkey"
             columns: ["assignment_id"]
             isOneToOne: true
             referencedRelation: "review_assignments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_reviewer_id_fkey"
-            columns: ["reviewer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1442,7 +1406,7 @@ export type Database = {
     }
     Functions: {
       apply_review_template: {
-        Args: { p_program_id: string; p_template_id: string }
+        Args: { program_id_param: string; template_id_param: string }
         Returns: number
       }
       archive_program: {
@@ -1450,7 +1414,7 @@ export type Database = {
         Returns: undefined
       }
       auto_assign_reviewers: {
-        Args: { p_program_id: string; p_required_reviewers?: number }
+        Args: { program_id_param: string; required_reviewers?: number }
         Returns: number
       }
       calculate_application_completion: {
@@ -1458,11 +1422,11 @@ export type Database = {
         Returns: number
       }
       calculate_application_weighted_score: {
-        Args: { p_application_id: string }
+        Args: { application_id_param: string }
         Returns: number
       }
       calculate_reviewer_consensus: {
-        Args: { p_application_id: string }
+        Args: { application_id_param: string }
         Returns: number
       }
       can_delete_program: {
@@ -1471,19 +1435,19 @@ export type Database = {
       }
       create_question_from_template: {
         Args: {
-          p_program_id: string
-          p_template_id: string
           p_category_id?: string
           p_order_index?: number
+          p_program_id: string
           p_required?: boolean
+          p_template_id: string
         }
         Returns: string
       }
       duplicate_program_questions: {
         Args: {
+          include_responses?: boolean
           source_program_id: string
           target_program_id: string
-          include_responses?: boolean
         }
         Returns: number
       }
@@ -1506,12 +1470,12 @@ export type Database = {
       get_application_documents: {
         Args: { app_id: string; question_id?: string }
         Returns: {
+          document_category: string
           document_id: string
           file_name: string
-          file_type: string
           file_size: number
+          file_type: string
           file_url: string
-          document_category: string
           uploaded_at: string
           version: number
         }[]
@@ -1520,71 +1484,71 @@ export type Database = {
         Args: { app_id: string }
         Returns: {
           category_title: string
-          total_questions: number
-          required_questions: number
           completed_questions: number
           completion_percentage: number
+          required_questions: number
+          total_questions: number
         }[]
       }
       get_application_ranking: {
-        Args: { p_program_id: string }
+        Args: { program_id_param: string }
         Returns: {
-          application_id: string
           applicant_name: string
+          application_id: string
           average_score: number
-          review_count: number
           consensus_score: number
           rank: number
+          review_count: number
         }[]
       }
       get_incomplete_questions: {
         Args: { app_id: string }
         Returns: {
-          question_id: string
           category_title: string
+          has_response: boolean
+          question_id: string
           question_text: string
           question_type: Database["public"]["Enums"]["question_type"]
           required: boolean
-          has_response: boolean
         }[]
       }
       get_program_review_stats: {
-        Args: { p_program_id: string }
+        Args: { program_id_param: string }
         Returns: {
-          total_applications: number
-          applications_reviewed: number
           applications_pending_review: number
+          applications_reviewed: number
           average_score: number
-          total_reviewers: number
           reviews_completed: number
           reviews_pending: number
+          total_applications: number
+          total_reviewers: number
         }[]
       }
       get_reviewer_workload: {
-        Args: { p_reviewer_id: string }
+        Args: { reviewer_id_param: string }
         Returns: {
+          average_score: number
+          completed: number
+          deadline: string
+          pending: number
           program_id: string
           program_title: string
           total_assigned: number
-          completed: number
-          pending: number
-          deadline: string
-          average_score: number
         }[]
       }
       has_program_access: {
-        Args: { program_id_param: string; access_type?: string }
+        Args: { access_type?: string; program_id_param: string }
         Returns: boolean
       }
       has_role: {
         Args: {
-          user_id: string
           role: Database["public"]["Enums"]["user_role"]
+          user_id: string
         }
         Returns: boolean
       }
       is_program_admin: {
-        Args: { user_id: string; program_id: string }
+        Args: { program_id: string; user_id: string }
         Returns: boolean
       }
       migrate_application_responses: {
@@ -1592,29 +1556,29 @@ export type Database = {
         Returns: number
       }
       normalize_review_scores: {
-        Args: { p_program_id: string }
+        Args: { program_id_param: string }
         Returns: number
       }
       search_question_templates: {
         Args: {
-          search_text?: string
           category_filter?: Database["public"]["Enums"]["question_category_type"]
-          type_filter?: Database["public"]["Enums"]["question_type"]
-          tag_filter?: string
-          include_private?: boolean
           created_by_filter?: string
+          include_private?: boolean
+          search_text?: string
+          tag_filter?: string
+          type_filter?: Database["public"]["Enums"]["question_type"]
         }
         Returns: {
+          category: Database["public"]["Enums"]["question_category_type"]
+          created_at: string
+          created_by: string
+          description: string
+          is_system_template: boolean
+          question_text: string
+          question_type: Database["public"]["Enums"]["question_type"]
           template_id: string
           title: string
-          description: string
-          category: Database["public"]["Enums"]["question_category_type"]
-          question_type: Database["public"]["Enums"]["question_type"]
-          question_text: string
           usage_count: number
-          is_system_template: boolean
-          created_by: string
-          created_at: string
         }[]
       }
       track_document_access: {
@@ -1632,13 +1596,13 @@ export type Database = {
       update_security_config_status: {
         Args: {
           p_config_item: string
-          p_status: string
           p_description?: string
+          p_status: string
         }
         Returns: undefined
       }
       validate_review_completion: {
-        Args: { p_review_id: string }
+        Args: { review_id_param: string }
         Returns: boolean
       }
     }

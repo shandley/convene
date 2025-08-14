@@ -19,13 +19,25 @@ export async function GET(
     // Use service client to bypass RLS policies and avoid circular dependency issues
     const supabase = createServiceClient()
 
-    const { id: reviewId } = await params
+    const { id: assignmentId } = await params
+
+    // First get the review for this assignment
+    const { data: review, error: reviewError } = await supabase
+      .from('reviews')
+      .select('id')
+      .eq('assignment_id', assignmentId)
+      .single()
+
+    if (!review) {
+      // No review exists yet, return empty scores
+      return NextResponse.json({ data: [] })
+    }
 
     // Get review scores
     const { data: scores, error: scoresError } = await supabase
       .from('review_scores')
       .select('*')
-      .eq('review_id', reviewId)
+      .eq('review_id', review.id)
 
     if (scoresError) {
       console.error('Error fetching review scores:', scoresError)
@@ -83,7 +95,7 @@ export async function POST(
     // Use service client to bypass RLS policies and avoid circular dependency issues
     const supabase = createServiceClient()
 
-    const { id: reviewId } = await params
+    const { id: assignmentId } = await params
     const { scores } = await request.json()
 
     if (!scores || !Array.isArray(scores)) {
@@ -97,7 +109,7 @@ export async function POST(
     const { data: assignment, error: assignmentError } = await supabase
       .from('review_assignments')
       .select('id, reviewer_id, application_id')
-      .eq('id', reviewId)
+      .eq('id', assignmentId)
       .eq('reviewer_id', user.id) // Ensure only the assigned reviewer can access
       .single()
 
@@ -107,6 +119,40 @@ export async function POST(
         { error: 'Review assignment not found or access denied' },
         { status: 404 }
       )
+    }
+
+    // First, ensure a review record exists for this assignment
+    const { data: existingReview, error: reviewCheckError } = await supabase
+      .from('reviews')
+      .select('id')
+      .eq('assignment_id', assignmentId)
+      .single()
+
+    let reviewId: string
+
+    if (!existingReview) {
+      // Create a new review record if it doesn't exist
+      const { data: newReview, error: createReviewError } = await supabase
+        .from('reviews')
+        .insert({
+          assignment_id: assignmentId,
+          overall_score: 0, // Will be calculated later
+          comments: '',
+          strengths: '',
+          weaknesses: '',
+          recommendation: ''
+        })
+        .select('id')
+        .single()
+
+      if (createReviewError) {
+        console.error('Error creating review record:', createReviewError)
+        return NextResponse.json({ error: 'Failed to create review record' }, { status: 500 })
+      }
+
+      reviewId = newReview.id
+    } else {
+      reviewId = existingReview.id
     }
 
     // Upsert scores (insert or update)
@@ -154,7 +200,7 @@ export async function POST(
         status: newStatus,
         completed_at: allCriteriaScored ? new Date().toISOString() : null
       })
-      .eq('id', reviewId)
+      .eq('id', assignmentId)
 
     if (statusError) {
       console.error('Error updating review status:', statusError)
@@ -193,13 +239,13 @@ export async function DELETE(
     // Use service client to bypass RLS policies and avoid circular dependency issues
     const supabase = createServiceClient()
 
-    const { id: reviewId } = await params
+    const { id: assignmentId } = await params
 
     // Verify reviewer has access to this review assignment
     const { data: assignment, error: assignmentError } = await supabase
       .from('review_assignments')
       .select('id, reviewer_id')
-      .eq('id', reviewId)
+      .eq('id', assignmentId)
       .eq('reviewer_id', user.id) // Ensure only the assigned reviewer can access
       .single()
 
@@ -211,11 +257,23 @@ export async function DELETE(
       )
     }
 
+    // Get the review for this assignment
+    const { data: review, error: reviewError } = await supabase
+      .from('reviews')
+      .select('id')
+      .eq('assignment_id', assignmentId)
+      .single()
+
+    if (!review) {
+      // No review exists yet, nothing to delete
+      return NextResponse.json({ message: 'No scores to delete' })
+    }
+
     // Delete all scores for this review
     const { error } = await supabase
       .from('review_scores')
       .delete()
-      .eq('review_id', reviewId)
+      .eq('review_id', review.id)
 
     if (error) {
       console.error('Error deleting review scores:', error)
@@ -229,7 +287,7 @@ export async function DELETE(
         status: 'not_started',
         completed_at: null
       })
-      .eq('id', reviewId)
+      .eq('id', assignmentId)
 
     if (statusError) {
       console.error('Error updating review status:', statusError)
