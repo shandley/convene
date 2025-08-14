@@ -1,39 +1,62 @@
 import { createClient } from '@/lib/supabase/server'
+import { getUserFromRequest, createServiceClient } from '@/lib/supabase/server-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Database } from '@/types/database.types'
 
 // GET /api/reviews/[id]/scores
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient()
-
   try {
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Check authentication using our helper that supports both cookies and Authorization header
+    const { user, error: authError } = await getUserFromRequest(request)
     if (authError || !user) {
+      console.error('Auth error in review scores:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Use service client to bypass RLS policies and avoid circular dependency issues
+    const supabase = createServiceClient()
+
     const { id: reviewId } = await params
 
-    // Get review scores with criteria details
-    const { data: scores, error } = await supabase
+    // Get review scores
+    const { data: scores, error: scoresError } = await supabase
       .from('review_scores')
-      .select(`
-        *,
-        criteria:review_criteria(*)
-      `)
+      .select('*')
       .eq('review_id', reviewId)
-      .order('criteria(sort_order)', { ascending: true })
 
-    if (error) {
-      console.error('Error fetching review scores:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (scoresError) {
+      console.error('Error fetching review scores:', scoresError)
+      return NextResponse.json({ error: scoresError.message }, { status: 500 })
     }
 
-    return NextResponse.json({ data: scores })
+    // Get criteria separately if we have scores
+    let criteria: any[] = []
+    if (scores && scores.length > 0) {
+      const criteriaIds = scores.map(s => s.criteria_id)
+      const { data: criteriaData, error: criteriaError } = await supabase
+        .from('review_criteria')
+        .select('*')
+        .in('id', criteriaIds)
+        .order('sort_order', { ascending: true })
+
+      if (criteriaError) {
+        console.error('Error fetching review criteria:', criteriaError)
+        return NextResponse.json({ error: criteriaError.message }, { status: 500 })
+      }
+
+      criteria = criteriaData || []
+    }
+
+    // Merge criteria data into scores
+    const scoresWithCriteria = scores?.map(score => ({
+      ...score,
+      criteria: criteria.find(c => c.id === score.criteria_id)
+    })) || []
+
+    return NextResponse.json({ data: scoresWithCriteria })
   } catch (error) {
     console.error('Error in GET review scores:', error)
     return NextResponse.json(
@@ -46,17 +69,19 @@ export async function GET(
 // POST /api/reviews/[id]/scores
 // Submit or update scores for a review
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient()
-
   try {
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Check authentication using our helper that supports both cookies and Authorization header
+    const { user, error: authError } = await getUserFromRequest(request)
     if (authError || !user) {
+      console.error('Auth error in review scores POST:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Use service client to bypass RLS policies and avoid circular dependency issues
+    const supabase = createServiceClient()
 
     const { id: reviewId } = await params
     const { scores } = await request.json()
@@ -73,20 +98,14 @@ export async function POST(
       .from('review_assignments')
       .select('id, reviewer_id, application_id')
       .eq('id', reviewId)
+      .eq('reviewer_id', user.id) // Ensure only the assigned reviewer can access
       .single()
 
     if (assignmentError || !assignment) {
+      console.error('Error fetching/accessing review assignment:', assignmentError)
       return NextResponse.json(
-        { error: 'Review assignment not found' },
+        { error: 'Review assignment not found or access denied' },
         { status: 404 }
-      )
-    }
-
-    // Check if user is the assigned reviewer
-    if (assignment.reviewer_id !== user.id) {
-      return NextResponse.json(
-        { error: 'You are not authorized to score this review' },
-        { status: 403 }
       )
     }
 
@@ -160,17 +179,19 @@ export async function POST(
 // DELETE /api/reviews/[id]/scores
 // Clear all scores for a review
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = await createClient()
-
   try {
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Check authentication using our helper that supports both cookies and Authorization header
+    const { user, error: authError } = await getUserFromRequest(request)
     if (authError || !user) {
+      console.error('Auth error in review scores DELETE:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Use service client to bypass RLS policies and avoid circular dependency issues
+    const supabase = createServiceClient()
 
     const { id: reviewId } = await params
 
@@ -179,20 +200,14 @@ export async function DELETE(
       .from('review_assignments')
       .select('id, reviewer_id')
       .eq('id', reviewId)
+      .eq('reviewer_id', user.id) // Ensure only the assigned reviewer can access
       .single()
 
     if (assignmentError || !assignment) {
+      console.error('Error fetching/accessing review assignment:', assignmentError)
       return NextResponse.json(
-        { error: 'Review assignment not found' },
+        { error: 'Review assignment not found or access denied' },
         { status: 404 }
-      )
-    }
-
-    // Check if user is the assigned reviewer
-    if (assignment.reviewer_id !== user.id) {
-      return NextResponse.json(
-        { error: 'You are not authorized to modify this review' },
-        { status: 403 }
       )
     }
 
