@@ -21,7 +21,7 @@ export async function GET(
     // Get program review statistics using the database function
     const { data: stats, error: statsError } = await supabase
       .rpc('get_program_review_stats', {
-        p_program_id: programId
+        program_id_param: programId
       })
 
     if (statsError) {
@@ -32,7 +32,7 @@ export async function GET(
     // Get application rankings
     const { data: rankings, error: rankingsError } = await supabase
       .rpc('get_application_ranking', {
-        p_program_id: programId
+        program_id_param: programId
       })
 
     if (rankingsError) {
@@ -46,22 +46,28 @@ export async function GET(
       .select(`
         reviewer_id,
         status,
-        profiles!reviewer_id (
+        profiles!review_assignments_reviewer_id_fkey (
           id,
-          first_name,
-          last_name,
+          full_name,
           email
+        ),
+        applications!review_assignments_application_id_fkey (
+          program_id
         )
       `)
-      .eq('program_id', programId)
+      .eq('applications.program_id', programId)
 
     if (reviewerError) {
       console.error('Error fetching reviewer stats:', reviewerError)
       return NextResponse.json({ error: reviewerError.message }, { status: 500 })
     }
 
-    // Process reviewer stats
-    const reviewerWorkload = reviewerStats.reduce((acc: any, assignment: any) => {
+    // Process reviewer stats - filter for this program only
+    const filteredStats = reviewerStats?.filter((assignment: any) => 
+      assignment.applications?.program_id === programId
+    ) || []
+    
+    const reviewerWorkload = filteredStats.reduce((acc: any, assignment: any) => {
       const reviewerId = assignment.reviewer_id
       if (!acc[reviewerId]) {
         acc[reviewerId] = {
