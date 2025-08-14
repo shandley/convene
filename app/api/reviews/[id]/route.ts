@@ -129,7 +129,7 @@ export async function GET(
           id,
           question_text,
           question_type,
-          display_order
+          order_index
         )
       `)
       .eq('application_id', application.id)
@@ -139,10 +139,10 @@ export async function GET(
       // Don't fail the whole request if responses can't be fetched
     }
 
-    // Sort responses by display_order and transform into the expected format
+    // Sort responses by order_index and transform into the expected format
     const sortedResponses = responses?.sort((a, b) => {
-      const orderA = a.question?.display_order || 0
-      const orderB = b.question?.display_order || 0
+      const orderA = a.question?.order_index || 0
+      const orderB = b.question?.order_index || 0
       return orderA - orderB
     }) || []
     
