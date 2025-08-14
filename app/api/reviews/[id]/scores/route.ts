@@ -183,7 +183,7 @@ export async function POST(
     // Calculate total weighted score for the review
     const { data: weightedScore, error: calcError } = await supabase
       .rpc('calculate_application_weighted_score', {
-        p_application_id: assignment.application_id
+        application_id_param: assignment.application_id
       })
 
     if (calcError) {
