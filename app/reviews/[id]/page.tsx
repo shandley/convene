@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth/context'
 import { ScoreCriterion, type ReviewCriterion, type ReviewScore } from '@/components/reviews/ScoreCriterion'
@@ -25,114 +25,41 @@ import {
 import { formatDistanceToNow, format } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
 
-// Mock data for development
-const mockApplication = {
-  id: 'app-1',
-  applicant_name: 'Sarah Johnson',
-  applicant_email: 'sarah.johnson@email.com',
-  submitted_at: '2025-01-05T10:30:00Z',
-  program: {
-    title: 'Advanced Machine Learning Workshop',
-    description: 'A comprehensive workshop covering advanced ML techniques and applications.'
-  },
-  responses: [
-    {
-      question: 'What is your background in machine learning?',
-      answer: 'I have 3 years of experience working with machine learning algorithms including supervised and unsupervised learning. I have worked on projects involving neural networks, decision trees, and ensemble methods.'
-    },
-    {
-      question: 'What do you hope to gain from this workshop?',
-      answer: 'I want to deepen my understanding of advanced techniques like transformers and GANs, and learn how to apply them to real-world problems in my current role as a data scientist.'
+// Types for API responses
+interface ReviewAssignment {
+  id: string
+  application_id: string
+  reviewer_id: string
+  status: string
+  assigned_at: string
+  deadline: string
+  completed_at: string | null
+  program_id: string
+  application: {
+    id: string
+    program_id: string
+    submitted_at: string
+    responses: Array<{
+      question: string
+      answer: string
+    }>
+    applicant: {
+      id: string
+      full_name: string
+      email: string
     }
-  ]
+    program: {
+      id: string
+      title: string
+      description: string
+    }
+  }
 }
 
-const mockReviewCriteria: ReviewCriterion[] = [
-  {
-    id: 'criteria-1',
-    name: 'Technical Background',
-    description: 'Evaluate the applicant\'s technical foundation and relevant experience',
-    scoring_type: 'numerical',
-    weight: 30,
-    max_score: 10,
-    min_score: 0,
-    rubric_definition: {
-      'Excellent (9-10)': 'Strong technical background with extensive relevant experience',
-      'Good (7-8)': 'Solid technical background with some relevant experience',
-      'Fair (5-6)': 'Basic technical background with limited relevant experience',
-      'Poor (0-4)': 'Weak or no relevant technical background'
-    },
-    scoring_guide: 'Consider depth of experience, relevance to program content, and demonstrated skills'
-  },
-  {
-    id: 'criteria-2',
-    name: 'Learning Motivation',
-    description: 'Assess the applicant\'s motivation and commitment to learning',
-    scoring_type: 'categorical',
-    weight: 25,
-    max_score: 5,
-    min_score: 1,
-    rubric_definition: {
-      'Excellent': 'Clearly articulated goals with strong motivation and commitment',
-      'Good': 'Well-defined goals with good motivation',
-      'Fair': 'Some goals identified but motivation unclear',
-      'Poor': 'Vague or unclear goals and motivation'
-    },
-    scoring_guide: 'Look for specific, realistic goals and genuine enthusiasm for learning'
-  },
-  {
-    id: 'criteria-3',
-    name: 'Program Fit',
-    description: 'How well does the applicant fit with the program objectives?',
-    scoring_type: 'binary',
-    weight: 20,
-    max_score: 1,
-    min_score: 0,
-    rubric_definition: {
-      'Meets Criteria': 'Strong alignment with program objectives and target audience',
-      'Does Not Meet': 'Poor fit or misaligned expectations'
-    },
-    scoring_guide: 'Consider if the program level and content match the applicant\'s needs'
-  },
-  {
-    id: 'criteria-4',
-    name: 'Communication Skills',
-    description: 'Quality of written communication and expression of ideas',
-    scoring_type: 'numerical',
-    weight: 15,
-    max_score: 10,
-    min_score: 0,
-    rubric_definition: {
-      'Excellent (9-10)': 'Clear, articulate, well-structured responses',
-      'Good (7-8)': 'Generally clear with minor issues',
-      'Fair (5-6)': 'Understandable but with some clarity issues',
-      'Poor (0-4)': 'Unclear, confusing, or poorly structured'
-    },
-    scoring_guide: 'Evaluate clarity, organization, grammar, and overall communication effectiveness'
-  },
-  {
-    id: 'criteria-5',
-    name: 'Commitment & Availability',
-    description: 'Applicant\'s ability to commit time and effort to the program',
-    scoring_type: 'numerical',
-    weight: 10,
-    max_score: 10,
-    min_score: 0,
-    rubric_definition: {
-      'Excellent (9-10)': 'Clear schedule availability and strong commitment',
-      'Good (7-8)': 'Good availability with minor constraints',
-      'Fair (5-6)': 'Some availability concerns or unclear commitment',
-      'Poor (0-4)': 'Limited availability or weak commitment'
-    },
-    scoring_guide: 'Consider time availability, competing commitments, and expressed dedication'
-  }
-]
-
-const mockReview = {
-  id: 'review-1',
-  status: 'in_progress',
-  due_date: '2025-01-20T23:59:59Z',
-  assigned_at: '2025-01-01T00:00:00Z'
+interface ReviewData {
+  assignment: ReviewAssignment
+  criteria: ReviewCriterion[]
+  existingScores: Record<string, any>
 }
 
 export default function ReviewDetailPage() {
@@ -145,31 +72,81 @@ export default function ReviewDetailPage() {
   const [scores, setScores] = useState<Record<string, ReviewScore>>({})
   const [overallComments, setOverallComments] = useState('')
   const [currentTab, setCurrentTab] = useState('application')
+  const [reviewData, setReviewData] = useState<ReviewData | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const reviewId = params.id as string
   const isReviewer = hasRole('reviewer')
 
-  useEffect(() => {
-    if (!authLoading) {
-      // Simulate API call - replace with actual API call
-      setTimeout(() => {
-        setLoading(false)
-      }, 1000)
-    }
-  }, [authLoading])
+  // Fetch review data from API
+  const fetchReviewData = useCallback(async () => {
+    if (!reviewId || authLoading) return
 
-  const handleScoreChange = (criteriaId: string, score: Partial<ReviewScore>) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch(`/api/reviews/${reviewId}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch review data')
+      }
+
+      const result = await response.json()
+      const data: ReviewData = result.data
+      
+      setReviewData(data)
+      
+      // Initialize scores from existing scores if available
+      const initialScores: Record<string, ReviewScore> = {}
+      data.criteria.forEach(criterion => {
+        const existingScore = data.existingScores[criterion.id]
+        if (existingScore) {
+          initialScores[criterion.id] = {
+            id: existingScore.id,
+            criteria_id: criterion.id,
+            raw_score: existingScore.raw_score,
+            rubric_level: existingScore.rubric_level,
+            score_rationale: existingScore.score_rationale,
+            reviewer_confidence: existingScore.reviewer_confidence
+          }
+        }
+      })
+      setScores(initialScores)
+      
+      // Load existing overall comments if they exist
+      // Note: Overall comments are stored in the reviews table, not review_assignments
+      // We'll handle this separately if needed
+    } catch (err) {
+      console.error('Error fetching review data:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }, [reviewId, authLoading])
+
+  useEffect(() => {
+    fetchReviewData()
+  }, [fetchReviewData])
+
+  const handleScoreChange = useCallback((criteriaId: string, score: Partial<ReviewScore>) => {
     setScores(prev => ({
       ...prev,
-      [criteriaId]: { ...prev[criteriaId], ...score }
+      [criteriaId]: { 
+        ...prev[criteriaId], 
+        ...score,
+        criteria_id: criteriaId // Ensure criteria_id is always set
+      }
     }))
-  }
+  }, [])
 
-  const calculateTotalScore = () => {
+  const calculateTotalScore = useCallback(() => {
+    if (!reviewData) return 0
+    
     let totalWeightedScore = 0
     let totalWeight = 0
     
-    mockReviewCriteria.forEach(criterion => {
+    reviewData.criteria.forEach(criterion => {
       const score = scores[criterion.id]
       if (score && typeof score.raw_score === 'number') {
         const weightedScore = (score.raw_score / criterion.max_score) * criterion.weight
@@ -179,27 +156,76 @@ export default function ReviewDetailPage() {
     })
     
     return totalWeight > 0 ? (totalWeightedScore / totalWeight) * 100 : 0
-  }
+  }, [reviewData, scores])
 
-  const getScoredCriteriaCount = () => {
+  const getScoredCriteriaCount = useCallback(() => {
     return Object.values(scores).filter(score => 
       score && typeof score.raw_score === 'number'
     ).length
-  }
+  }, [scores])
 
   const handleSaveDraft = async () => {
+    if (!reviewData) return
+    
     setSaving(true)
     try {
-      // Simulate API call - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Save scores as draft (in_progress status)
+      const scoresArray = Object.values(scores).filter(score => 
+        score && typeof score.raw_score === 'number'
+      ).map(score => ({
+        criteria_id: score.criteria_id,
+        raw_score: score.raw_score,
+        rubric_level: score.rubric_level || null,
+        score_rationale: score.score_rationale || null,
+        reviewer_confidence: score.reviewer_confidence || null
+      }))
+
+      if (scoresArray.length === 0) {
+        toast({
+          title: "Nothing to Save",
+          description: "Please score at least one criterion before saving.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`/api/reviews/${reviewId}/scores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ scores: scoresArray })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save draft')
+      }
+
+      // Save overall comments if provided
+      if (overallComments.trim()) {
+        const commentsResponse = await fetch(`/api/reviews/${reviewId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ overall_comments: overallComments })
+        })
+
+        if (!commentsResponse.ok) {
+          console.warn('Failed to save comments, but scores were saved')
+        }
+      }
+
       toast({
         title: "Draft Saved",
         description: "Your review progress has been saved as a draft."
       })
     } catch (error) {
+      console.error('Error saving draft:', error)
       toast({
         title: "Save Failed",
-        description: "There was an error saving your draft. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error saving your draft. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -208,11 +234,13 @@ export default function ReviewDetailPage() {
   }
 
   const handleSubmitReview = async () => {
+    if (!reviewData) return
+    
     const scoredCount = getScoredCriteriaCount()
-    if (scoredCount !== mockReviewCriteria.length) {
+    if (scoredCount !== reviewData.criteria.length) {
       toast({
         title: "Incomplete Review",
-        description: `Please score all ${mockReviewCriteria.length} criteria before submitting.`,
+        description: `Please score all ${reviewData.criteria.length} criteria before submitting.`,
         variant: "destructive"
       })
       return
@@ -220,17 +248,58 @@ export default function ReviewDetailPage() {
 
     setSubmitting(true)
     try {
-      // Simulate API call - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Prepare scores data for submission
+      const scoresArray = Object.values(scores).map(score => ({
+        criteria_id: score.criteria_id,
+        raw_score: score.raw_score,
+        rubric_level: score.rubric_level || null,
+        score_rationale: score.score_rationale || null,
+        reviewer_confidence: score.reviewer_confidence || null
+      }))
+
+      // Submit all scores (this will mark the review as completed)
+      const scoresResponse = await fetch(`/api/reviews/${reviewId}/scores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ scores: scoresArray })
+      })
+
+      if (!scoresResponse.ok) {
+        const errorData = await scoresResponse.json()
+        throw new Error(errorData.error || 'Failed to submit review scores')
+      }
+
+      // Save overall comments
+      if (overallComments.trim()) {
+        const commentsResponse = await fetch(`/api/reviews/${reviewId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ overall_comments: overallComments })
+        })
+
+        if (!commentsResponse.ok) {
+          console.warn('Failed to save comments, but review was submitted')
+        }
+      }
+
       toast({
         title: "Review Submitted",
         description: "Your review has been submitted successfully."
       })
-      router.push('/reviews')
+
+      // Use replace to prevent back button issues and don't reset submitting state
+      // since we're navigating away
+      router.replace('/reviews')
+      return // Exit early to prevent finally block from executing
     } catch (error) {
+      console.error('Error submitting review:', error)
       toast({
         title: "Submission Failed",
-        description: "There was an error submitting your review. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error submitting your review. Please try again.",
         variant: "destructive"
       })
     } finally {
@@ -255,6 +324,35 @@ export default function ReviewDetailPage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Card>
+          <CardContent className="py-8 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Review</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={fetchReviewData}>Try Again</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!reviewData) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Card>
+          <CardContent className="py-8 text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Review Not Found</h2>
+            <p className="text-gray-600">
+              The requested review could not be found or you don't have access to it.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   if (!isReviewer) {
     return (
       <div className="container mx-auto py-8 px-4">
@@ -270,10 +368,10 @@ export default function ReviewDetailPage() {
     )
   }
 
-  const isOverdue = new Date(mockReview.due_date) < new Date()
+  const isOverdue = new Date(reviewData.assignment.deadline) < new Date()
   const totalScore = calculateTotalScore()
   const scoredCount = getScoredCriteriaCount()
-  const isCompleted = scoredCount === mockReviewCriteria.length
+  const isCompleted = scoredCount === reviewData.criteria.length
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
@@ -284,11 +382,12 @@ export default function ReviewDetailPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push('/reviews')}
+              onClick={() => router.replace('/reviews')}
+              disabled={submitting}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Reviews
+              {submitting ? 'Submitting...' : 'Back to Reviews'}
             </Button>
           </div>
           
@@ -300,7 +399,7 @@ export default function ReviewDetailPage() {
               </Badge>
             )}
             <Badge variant="outline">
-              Due {formatDistanceToNow(new Date(mockReview.due_date), { addSuffix: true })}
+              Due {formatDistanceToNow(new Date(reviewData.assignment.deadline), { addSuffix: true })}
             </Badge>
           </div>
         </div>
@@ -311,20 +410,20 @@ export default function ReviewDetailPage() {
             <div className="flex items-start justify-between">
               <div>
                 <CardTitle className="text-2xl text-gray-900">
-                  {mockApplication.program.title}
+                  {reviewData.assignment.application.program.title}
                 </CardTitle>
                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     <User className="h-4 w-4" />
-                    <span>{mockApplication.applicant_name}</span>
+                    <span>{reviewData.assignment.application.applicant.full_name}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    <span>Applied {format(new Date(mockApplication.submitted_at), 'MMM d, yyyy')}</span>
+                    <span>Applied {format(new Date(reviewData.assignment.application.submitted_at), 'MMM d, yyyy')}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="h-4 w-4" />
-                    <span>Due {format(new Date(mockReview.due_date), 'MMM d, yyyy')}</span>
+                    <span>Due {format(new Date(reviewData.assignment.deadline), 'MMM d, yyyy')}</span>
                   </div>
                 </div>
               </div>
@@ -343,7 +442,7 @@ export default function ReviewDetailPage() {
 
         {/* Progress Indicator */}
         <ReviewProgress
-          totalCriteria={mockReviewCriteria.length}
+          totalCriteria={reviewData.criteria.length}
           scoredCriteria={scoredCount}
           isCompleted={isCompleted}
           className="bg-white p-4 rounded-lg border"
@@ -365,14 +464,14 @@ export default function ReviewDetailPage() {
               <CardContent className="space-y-6">
                 <div>
                   <h4 className="font-medium text-gray-900 mb-2">Program</h4>
-                  <p className="text-gray-600">{mockApplication.program.description}</p>
+                  <p className="text-gray-600">{reviewData.assignment.application.program.description}</p>
                 </div>
                 
                 <Separator />
                 
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-900">Application Responses</h4>
-                  {mockApplication.responses.map((response, index) => (
+                  {reviewData.assignment.application.responses?.map((response, index) => (
                     <div key={index} className="space-y-2">
                       <h5 className="text-sm font-medium text-gray-700">
                         {response.question}
@@ -381,7 +480,11 @@ export default function ReviewDetailPage() {
                         {response.answer}
                       </p>
                     </div>
-                  ))}
+                  )) || (
+                    <p className="text-sm text-gray-500 italic">
+                      No application responses available.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -391,12 +494,13 @@ export default function ReviewDetailPage() {
             <div className="space-y-6">
               {/* Scoring Criteria */}
               <div className="space-y-6">
-                {mockReviewCriteria.map((criterion) => (
+                {reviewData.criteria.map((criterion) => (
                   <ScoreCriterion
                     key={criterion.id}
                     criterion={criterion}
                     score={scores[criterion.id]}
                     onScoreChange={(score) => handleScoreChange(criterion.id, score)}
+                    disabled={submitting}
                   />
                 ))}
               </div>
