@@ -3,6 +3,7 @@ export { ReviewStatusBadge } from './ReviewStatusBadge'
 export { ReviewStats } from './ReviewStats'
 export { ReviewProgress } from './ReviewProgress'
 export { ScoreCriterion } from './ScoreCriterion'
+export { ReviewErrorBoundary, useErrorHandler, safeAsync } from './ReviewErrorBoundary'
 
 export type { Review } from './ReviewCard'
 export type { ReviewStatus } from './ReviewStatusBadge'

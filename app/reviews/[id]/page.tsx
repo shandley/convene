@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth/context'
 import { ScoreCriterion, type ReviewCriterion, type ReviewScore } from '@/components/reviews/ScoreCriterion'
 import { ReviewProgress } from '@/components/reviews/ReviewProgress'
+import { ReviewErrorBoundary, useErrorHandler, safeAsync } from '@/components/reviews/ReviewErrorBoundary'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -60,9 +61,12 @@ interface ReviewData {
   assignment: ReviewAssignment
   criteria: ReviewCriterion[]
   existingScores: Record<string, any>
+  hasLegacyScores: boolean
+  legacyComments: string
+  legacyOverallScore: number | null
 }
 
-export default function ReviewDetailPage() {
+function ReviewDetailPageContent() {
   const params = useParams()
   const router = useRouter()
   const { hasRole, loading: authLoading } = useAuth()
@@ -74,6 +78,9 @@ export default function ReviewDetailPage() {
   const [currentTab, setCurrentTab] = useState('application')
   const [reviewData, setReviewData] = useState<ReviewData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [criteriaErrors, setCriteriaErrors] = useState<Record<string, string>>({})
+  const [saveErrors, setSaveErrors] = useState<string | null>(null)
+  const { handleError } = useErrorHandler()
 
   const reviewId = params.id as string
   const isReviewer = hasRole('reviewer')
@@ -97,7 +104,7 @@ export default function ReviewDetailPage() {
       
       setReviewData(data)
       
-      // Initialize scores from existing scores if available
+      // Initialize scores from existing scores (both legacy and new formats)
       const initialScores: Record<string, ReviewScore> = {}
       data.criteria.forEach(criterion => {
         const existingScore = data.existingScores[criterion.id]
@@ -114,9 +121,10 @@ export default function ReviewDetailPage() {
       })
       setScores(initialScores)
       
-      // Load existing overall comments if they exist
-      // Note: Overall comments are stored in the reviews table, not review_assignments
-      // We'll handle this separately if needed
+      // Load legacy overall comments if they exist
+      if (data.hasLegacyScores && data.legacyComments) {
+        setOverallComments(data.legacyComments)
+      }
     } catch (err) {
       console.error('Error fetching review data:', err)
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -168,7 +176,9 @@ export default function ReviewDetailPage() {
     if (!reviewData) return
     
     setSaving(true)
-    try {
+    setSaveErrors(null)
+    
+    const result = await safeAsync(async () => {
       // Save scores as draft (in_progress status)
       const scoresArray = Object.values(scores).filter(score => 
         score && typeof score.raw_score === 'number'
@@ -221,16 +231,16 @@ export default function ReviewDetailPage() {
         title: "Draft Saved",
         description: "Your review progress has been saved as a draft."
       })
-    } catch (error) {
-      console.error('Error saving draft:', error)
+    }, undefined, (error: any) => {
+      setSaveErrors(error.message)
       toast({
         title: "Save Failed",
-        description: error instanceof Error ? error.message : "There was an error saving your draft. Please try again.",
+        description: error.message || "There was an error saving your draft. Please try again.",
         variant: "destructive"
       })
-    } finally {
-      setSaving(false)
-    }
+    })
+    
+    setSaving(false)
   }
 
   const handleSubmitReview = async () => {
@@ -247,7 +257,9 @@ export default function ReviewDetailPage() {
     }
 
     setSubmitting(true)
-    try {
+    setSaveErrors(null)
+    
+    const result = await safeAsync(async () => {
       // Prepare scores data for submission
       const scoresArray = Object.values(scores).map(score => ({
         criteria_id: score.criteria_id,
@@ -295,14 +307,16 @@ export default function ReviewDetailPage() {
       // since we're navigating away
       router.replace('/reviews')
       return // Exit early to prevent finally block from executing
-    } catch (error) {
-      console.error('Error submitting review:', error)
+    }, undefined, (error: any) => {
+      setSaveErrors(error.message)
       toast({
         title: "Submission Failed",
-        description: error instanceof Error ? error.message : "There was an error submitting your review. Please try again.",
+        description: error.message || "There was an error submitting your review. Please try again.",
         variant: "destructive"
       })
-    } finally {
+    })
+    
+    if (!result) {
       setSubmitting(false)
     }
   }
@@ -494,17 +508,152 @@ export default function ReviewDetailPage() {
 
           <TabsContent value="scoring" className="mt-6">
             <div className="space-y-6">
+              {/* Legacy Score Notice */}
+              {reviewData.hasLegacyScores && (
+                <Card className="border-amber-200 bg-amber-50">
+                  <CardContent className="py-4">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        Legacy Scores Detected
+                      </span>
+                    </div>
+                    <p className="text-sm text-amber-700 mt-1">
+                      This review contains scores from the previous scoring system. 
+                      They have been mapped to the current criteria structure for compatibility.
+                      {reviewData.legacyOverallScore && (
+                        <span className="ml-1 font-medium">
+                          (Original Overall Score: {reviewData.legacyOverallScore}/10)
+                        </span>
+                      )}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* API Error Display */}
+              {saveErrors && (
+                <Card className="border-red-200 bg-red-50">
+                  <CardContent className="py-4">
+                    <div className="flex items-center gap-2 text-red-800">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        Save Error
+                      </span>
+                    </div>
+                    <p className="text-sm text-red-700 mt-1">
+                      {saveErrors}
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSaveErrors(null)}
+                      >
+                        Dismiss
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveDraft}
+                        disabled={saving}
+                      >
+                        Retry Save
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Scoring Criteria */}
               <div className="space-y-6">
-                {reviewData.criteria.map((criterion) => (
-                  <ScoreCriterion
-                    key={criterion.id}
-                    criterion={criterion}
-                    score={scores[criterion.id]}
-                    onScoreChange={(score) => handleScoreChange(criterion.id, score)}
-                    disabled={submitting}
-                  />
-                ))}
+                {reviewData.criteria.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-8 text-center">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        No Scoring Criteria Available
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        This review doesn't have any scoring criteria configured.
+                        Please contact an administrator to set up the review criteria.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={fetchReviewData}
+                        disabled={loading}
+                      >
+                        Refresh
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  reviewData.criteria.map((criterion) => {
+                    const criterionError = criteriaErrors[criterion.id]
+                    
+                    return (
+                      <ReviewErrorBoundary
+                        key={criterion.id}
+                        fallback={
+                          <Card className="border-red-200 bg-red-50">
+                            <CardContent className="py-6">
+                              <div className="flex items-center gap-2 text-red-800 mb-2">
+                                <AlertCircle className="h-4 w-4" />
+                                <span className="font-medium">
+                                  Error loading criterion: {criterion.name}
+                                </span>
+                              </div>
+                              <p className="text-sm text-red-700 mb-3">
+                                This scoring criterion encountered an error and couldn't be loaded.
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setCriteriaErrors(prev => {
+                                    const { [criterion.id]: removed, ...rest } = prev
+                                    return rest
+                                  })
+                                }}
+                              >
+                                Try Again
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        }
+                      >
+                        <ScoreCriterion
+                          criterion={criterion}
+                          score={scores[criterion.id]}
+                          onScoreChange={(score) => {
+                            try {
+                              handleScoreChange(criterion.id, score)
+                              // Clear any previous error for this criterion
+                              setCriteriaErrors(prev => {
+                                const { [criterion.id]: removed, ...rest } = prev
+                                return rest
+                              })
+                            } catch (err) {
+                              const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+                              setCriteriaErrors(prev => ({ 
+                                ...prev, 
+                                [criterion.id]: errorMessage 
+                              }))
+                            }
+                          }}
+                          disabled={submitting || (reviewData.hasLegacyScores && scores[criterion.id]?.id?.startsWith('legacy_'))}
+                          loading={loading}
+                          error={criterionError}
+                          onRetry={() => {
+                            setCriteriaErrors(prev => {
+                              const { [criterion.id]: removed, ...rest } = prev
+                              return rest
+                            })
+                          }}
+                        />
+                      </ReviewErrorBoundary>
+                    )
+                  })
+                )}
               </div>
 
               {/* Overall Comments */}
@@ -529,24 +678,34 @@ export default function ReviewDetailPage() {
 
               {/* Action Buttons */}
               <div className="flex gap-4 justify-end bg-white p-4 rounded-lg border">
-                <Button
-                  variant="outline"
-                  onClick={handleSaveDraft}
-                  disabled={saving || submitting}
-                  className="flex items-center gap-2"
-                >
-                  <Save className="h-4 w-4" />
-                  {saving ? 'Saving...' : 'Save Draft'}
-                </Button>
-                
-                <Button
-                  onClick={handleSubmitReview}
-                  disabled={saving || submitting || !isCompleted}
-                  className="flex items-center gap-2"
-                >
-                  <Send className="h-4 w-4" />
-                  {submitting ? 'Submitting...' : 'Submit Review'}
-                </Button>
+                {reviewData.hasLegacyScores && Object.values(scores).every(score => score?.id?.startsWith('legacy_')) ? (
+                  <div className="flex-1 text-right">
+                    <p className="text-sm text-amber-700 mb-2">
+                      This review is completed with legacy scores. No further modifications are needed.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={handleSaveDraft}
+                      disabled={saving || submitting}
+                      className="flex items-center gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      {saving ? 'Saving...' : 'Save Draft'}
+                    </Button>
+                    
+                    <Button
+                      onClick={handleSubmitReview}
+                      disabled={saving || submitting || !isCompleted}
+                      className="flex items-center gap-2"
+                    >
+                      <Send className="h-4 w-4" />
+                      {submitting ? 'Submitting...' : 'Submit Review'}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </TabsContent>
@@ -561,5 +720,18 @@ export default function ReviewDetailPage() {
         </Tabs>
       </div>
     </div>
+  )
+}
+
+export default function ReviewDetailPage() {
+  return (
+    <ReviewErrorBoundary
+      onReset={() => {
+        // Clear any cached data and refresh
+        window.location.reload()
+      }}
+    >
+      <ReviewDetailPageContent />
+    </ReviewErrorBoundary>
   )
 }

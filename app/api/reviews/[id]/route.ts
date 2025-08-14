@@ -101,7 +101,7 @@ export async function GET(
       return NextResponse.json({ error: criteriaError.message }, { status: 500 })
     }
 
-    // Get existing scores for this review
+    // Get existing scores from new structured system
     const { data: existingScores, error: scoresError } = await supabase
       .from('review_scores')
       .select('*')
@@ -112,11 +112,71 @@ export async function GET(
       return NextResponse.json({ error: scoresError.message }, { status: 500 })
     }
 
-    // Create a map of existing scores by criteria_id for easy lookup
-    const scoresMap = existingScores?.reduce((map, score) => {
-      map[score.criteria_id] = score
-      return map
-    }, {} as Record<string, any>) || {}
+    // Check for legacy scores in the reviews table
+    const { data: legacyReview, error: legacyError } = await supabase
+      .from('reviews')
+      .select('criteria_scores, overall_score, comments, strengths, weaknesses')
+      .eq('assignment_id', reviewId)
+      .single()
+
+    if (legacyError && legacyError.code !== 'PGRST116') {
+      console.error('Error fetching legacy review:', legacyError)
+    }
+
+    // Create compatibility layer to handle both legacy and new scoring formats
+    let scoresMap: Record<string, any> = {}
+    let hasLegacyScores = false
+    let legacyComments = ''
+
+    // First, map new structured scores
+    if (existingScores && existingScores.length > 0) {
+      scoresMap = existingScores.reduce((map, score) => {
+        map[score.criteria_id] = score
+        return map
+      }, {} as Record<string, any>)
+    }
+
+    // Then, check for legacy scores and map them to current criteria
+    if (legacyReview?.criteria_scores) {
+      hasLegacyScores = true
+      legacyComments = legacyReview.comments || ''
+      
+      // Map legacy score keys to current criteria names
+      const legacyScoreMapping: Record<string, string> = {
+        'technical_background': 'Technical Background',
+        'motivation': 'Motivation and Goals',
+        'research_potential': 'Learning Impact Potential',
+        'communication': 'Communication Skills',
+        'fit_for_program': 'Learning Impact Potential' // fallback mapping
+      }
+
+      // Find matching criteria for legacy scores
+      for (const [legacyKey, legacyScore] of Object.entries(legacyReview.criteria_scores as Record<string, number>)) {
+        const criteriaName = legacyScoreMapping[legacyKey] || legacyKey
+        const matchingCriterion = criteria?.find(c => 
+          c.name === criteriaName || 
+          c.name.toLowerCase().includes(legacyKey.replace('_', ' ')) ||
+          legacyKey.toLowerCase().includes(c.name.toLowerCase().replace(' ', '_'))
+        )
+        
+        if (matchingCriterion && !scoresMap[matchingCriterion.id]) {
+          // Create a legacy score object that matches the new structure
+          scoresMap[matchingCriterion.id] = {
+            id: `legacy_${matchingCriterion.id}`,
+            criteria_id: matchingCriterion.id,
+            raw_score: typeof legacyScore === 'number' ? legacyScore : parseFloat(String(legacyScore)) || 0,
+            normalized_score: null,
+            weighted_score: null,
+            rubric_level: null,
+            score_rationale: `Legacy score from previous system: ${legacyKey}`,
+            reviewer_confidence: null,
+            is_legacy: true // Flag to identify legacy scores
+          }
+        } else if (!matchingCriterion) {
+          console.warn(`Could not map legacy score key "${legacyKey}" to any current criterion`)
+        }
+      }
+    }
 
     // Get application responses (answers to application questions)
     const { data: responses, error: responsesError } = await supabase
@@ -166,7 +226,10 @@ export async function GET(
       data: {
         assignment: assignmentWithNested,
         criteria,
-        existingScores: scoresMap
+        existingScores: scoresMap,
+        hasLegacyScores,
+        legacyComments,
+        legacyOverallScore: legacyReview?.overall_score || null
       }
     })
   } catch (error) {

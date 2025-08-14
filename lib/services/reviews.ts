@@ -1,5 +1,91 @@
 import type { Review } from '@/components/reviews/ReviewCard'
 
+/**
+ * Custom error class for review service errors
+ */
+export class ReviewServiceError extends Error {
+  constructor(
+    message: string,
+    public code?: string,
+    public status?: number
+  ) {
+    super(message)
+    this.name = 'ReviewServiceError'
+  }
+}
+
+/**
+ * Safe wrapper for async operations with error handling
+ */
+export async function safeReviewOperation<T>(
+  operation: () => Promise<T>,
+  errorMessage?: string
+): Promise<T | null> {
+  try {
+    return await operation()
+  } catch (error) {
+    console.error('Review service error:', error)
+    
+    if (error instanceof ReviewServiceError) {
+      throw error
+    }
+    
+    if (error instanceof Error) {
+      throw new ReviewServiceError(
+        errorMessage || error.message,
+        'OPERATION_FAILED'
+      )
+    }
+    
+    throw new ReviewServiceError(
+      errorMessage || 'An unexpected error occurred',
+      'UNKNOWN_ERROR'
+    )
+  }
+}
+
+/**
+ * Handle HTTP response errors
+ */
+function handleResponseError(response: Response): never {
+  const status = response.status
+  let message = 'An error occurred'
+  
+  switch (status) {
+    case 400:
+      message = 'Invalid request data'
+      break
+    case 401:
+      message = 'You are not authorized to perform this action'
+      break
+    case 403:
+      message = 'You do not have permission to access this resource'
+      break
+    case 404:
+      message = 'The requested resource was not found'
+      break
+    case 409:
+      message = 'There was a conflict with your request'
+      break
+    case 422:
+      message = 'The request data is invalid'
+      break
+    case 429:
+      message = 'Too many requests. Please try again later'
+      break
+    case 500:
+      message = 'Internal server error. Please try again later'
+      break
+    case 503:
+      message = 'Service temporarily unavailable. Please try again later'
+      break
+    default:
+      message = `Request failed with status ${status}`
+  }
+  
+  throw new ReviewServiceError(message, `HTTP_${status}`, status)
+}
+
 export interface ReviewStats {
   total: number
   inProgress: number
@@ -65,7 +151,7 @@ export interface ReviewFilterOptions {
  * Fetch all reviews assigned to current user
  */
 export async function getMyReviews(filters?: ReviewFilterOptions): Promise<Review[]> {
-  try {
+  return safeReviewOperation(async () => {
     const params = new URLSearchParams()
     
     if (filters) {
@@ -81,15 +167,12 @@ export async function getMyReviews(filters?: ReviewFilterOptions): Promise<Revie
     })
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch reviews: ${response.statusText}`)
+      handleResponseError(response)
     }
 
     const { data } = await response.json()
     return data || []
-  } catch (error) {
-    console.error('Error fetching reviews:', error)
-    throw error
-  }
+  }, 'Failed to fetch reviews') ?? []
 }
 
 /**
