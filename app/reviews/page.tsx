@@ -16,7 +16,7 @@ type SearchParams = {
 }
 
 interface PageProps {
-  searchParams: SearchParams
+  searchParams: Promise<SearchParams>
 }
 
 async function getReviewStats(userId: string) {
@@ -210,6 +210,9 @@ function ReviewsPageSkeleton() {
 }
 
 export default async function ReviewsPage({ searchParams }: PageProps) {
+  // Await searchParams in Next.js 15
+  const params = await searchParams
+  
   // Get user from server-side cookies
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -271,7 +274,7 @@ export default async function ReviewsPage({ searchParams }: PageProps) {
         </Suspense>
 
         {/* Filters */}
-        <ReviewsFilters searchParams={searchParams} />
+        <ReviewsFilters searchParams={params} />
 
         {/* Reviews List */}
         <Suspense fallback={
@@ -288,7 +291,7 @@ export default async function ReviewsPage({ searchParams }: PageProps) {
             ))}
           </div>
         }>
-          <ReviewsListServer userId={user.id} searchParams={searchParams} />
+          <ReviewsListServer userId={user.id} searchParams={params} />
         </Suspense>
       </div>
     </div>

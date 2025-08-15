@@ -16,9 +16,9 @@ import { format, formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 // Types for the review data
@@ -198,6 +198,9 @@ function ReviewDetailSkeleton() {
 }
 
 export default async function ReviewDetailPage({ params }: PageProps) {
+  // In Next.js 15, params is a Promise
+  const { id: reviewId } = await params
+  
   // Get user from server-side cookies
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -233,7 +236,7 @@ export default async function ReviewDetailPage({ params }: PageProps) {
   return (
     <div className="container mx-auto py-8 px-4 max-w-6xl">
       <Suspense fallback={<ReviewDetailSkeleton />}>
-        <ReviewDetailContentServer reviewId={params.id} userId={user.id} />
+        <ReviewDetailContentServer reviewId={reviewId} userId={user.id} />
       </Suspense>
     </div>
   )
