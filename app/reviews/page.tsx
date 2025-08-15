@@ -1,167 +1,231 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/lib/auth/context'
+import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { ReviewsList } from '@/components/reviews/ReviewsList'
+import { ReviewsFilters } from '@/components/reviews/ReviewsFilters'
 import { ReviewStats } from '@/components/reviews/ReviewStats'
-import { ReviewCard, type Review } from '@/components/reviews/ReviewCard'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Search, Filter, SortAsc } from 'lucide-react'
-import { getMyReviews, getReviewStats, type ReviewStats as ReviewStatsType, type ReviewFilterOptions } from '@/lib/services/reviews'
-import { toast } from '@/hooks/use-toast'
 
+type SearchParams = {
+  status?: string
+  priority?: string
+  search?: string
+  sort?: string
+  order?: string
+}
 
-type SortOption = 'due_date' | 'priority' | 'status' | 'program'
-type FilterStatus = 'all' | 'not_started' | 'in_progress' | 'completed' | 'overdue'
-type FilterPriority = 'all' | 'low' | 'medium' | 'high'
+interface PageProps {
+  searchParams: SearchParams
+}
 
-export default function ReviewsPage() {
-  const { hasRole, loading: authLoading } = useAuth()
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [filteredReviews, setFilteredReviews] = useState<Review[]>([])
-  const [stats, setStats] = useState<ReviewStatsType>({ total: 0, inProgress: 0, completed: 0, overdue: 0 })
-  const [loading, setLoading] = useState(true)
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>('all')
-  const [priorityFilter, setPriorityFilter] = useState<FilterPriority>('all')
-  const [sortBy, setSortBy] = useState<SortOption>('due_date')
+async function getReviewStats(userId: string) {
+  const supabase = await createClient()
+  
+  try {
+    // Get review assignments for the current user
+    const { data: assignments, error } = await supabase
+      .from('review_assignments')
+      .select('status, deadline')
+      .eq('reviewer_id', userId)
 
-  // Check if user has reviewer role
-  const isReviewer = hasRole('reviewer')
+    if (error) {
+      console.error('Error fetching review stats:', error)
+      return { total: 0, inProgress: 0, completed: 0, overdue: 0 }
+    }
 
-  // Fetch reviews from API
-  const fetchReviews = async () => {
-    if (!isReviewer) return
-    
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const filters: ReviewFilterOptions = {
-        status: statusFilter,
-        priority: priorityFilter,
-        sort: sortBy,
-        order: 'asc'
+    const now = new Date()
+    const stats = {
+      total: assignments?.length || 0,
+      inProgress: assignments?.filter((a: any) => a.status === 'in_progress').length || 0,
+      completed: assignments?.filter((a: any) => a.status === 'completed').length || 0,
+      overdue: assignments?.filter((a: any) => 
+        a.status !== 'completed' && new Date(a.deadline) < now
+      ).length || 0
+    }
+
+    return stats
+  } catch (error) {
+    console.error('Error calculating review stats:', error)
+    return { total: 0, inProgress: 0, completed: 0, overdue: 0 }
+  }
+}
+
+async function getReviews(userId: string, searchParams: SearchParams) {
+  const supabase = await createClient()
+  
+  try {
+    // Build query with filters
+    let query = supabase
+      .from('review_assignments')
+      .select(`
+        id,
+        application_id,
+        reviewer_id,
+        status,
+        assigned_at,
+        deadline,
+        completed_at,
+        program_id,
+        application:applications(
+          id,
+          program_id,
+          submitted_at,
+          applicant_id,
+          program:programs(
+            id,
+            title,
+            description
+          ),
+          applicant:profiles(
+            id,
+            full_name,
+            email
+          )
+        )
+      `)
+      .eq('reviewer_id', userId)
+
+    // Apply status filter
+    if (searchParams.status && searchParams.status !== 'all') {
+      if (searchParams.status === 'overdue') {
+        query = query
+          .lt('deadline', new Date().toISOString())
+          .neq('status', 'completed')
+      } else {
+        query = query.eq('status', searchParams.status as any)
       }
-      
-      const reviewsData = await getMyReviews(filters)
-      setReviews(reviewsData)
-    } catch (error) {
-      console.error('Failed to fetch reviews:', error)
-      setError('Failed to load reviews. Please try again.')
-      toast({
-        title: "Error",
-        description: "Failed to load reviews. Please try again.",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
     }
-  }
 
-  // Fetch stats from API
-  const fetchStats = async () => {
-    if (!isReviewer) return
-    
-    try {
-      setStatsLoading(true)
-      const statsData = await getReviewStats()
-      setStats(statsData)
-    } catch (error) {
-      console.error('Failed to fetch stats:', error)
-      // Don't show error toast for stats as it's not critical
-    } finally {
-      setStatsLoading(false)
+    // Apply sorting
+    const sortField = searchParams.sort || 'deadline'
+    const sortOrder = searchParams.order === 'desc' ? false : true
+
+    switch (sortField) {
+      case 'due_date':
+        query = query.order('deadline', { ascending: sortOrder })
+        break
+      case 'status':
+        query = query.order('status', { ascending: sortOrder })
+        break
+      default:
+        query = query.order('deadline', { ascending: true })
     }
-  }
 
-  useEffect(() => {
-    if (!authLoading && isReviewer) {
-      fetchReviews()
-      fetchStats()
+    const { data: assignments, error } = await query
+
+    if (error) {
+      console.error('Error fetching reviews:', error)
+      return []
     }
-  }, [authLoading, isReviewer])
 
-  // Refetch reviews when filters change
-  useEffect(() => {
-    if (!authLoading && isReviewer && !loading) {
-      fetchReviews()
-    }
-  }, [statusFilter, priorityFilter, sortBy])
+    if (!assignments) return []
 
-  // Apply client-side search filter (server handles status, priority, sort)
-  useEffect(() => {
-    let filtered = [...reviews]
+    // Transform data to match expected Review interface
+    const reviews = assignments.map((assignment: any) => ({
+      id: assignment.id,
+      application_id: assignment.application_id,
+      reviewer_id: assignment.reviewer_id,
+      status: assignment.status,
+      assigned_at: assignment.assigned_at,
+      due_date: assignment.deadline,
+      submitted_at: assignment.completed_at,
+      priority: 'medium' as const, // Default priority since not in schema
+      application: {
+        id: assignment.application?.id || assignment.application_id,
+        program_id: assignment.application?.program_id || '',
+        applicant_name: assignment.application?.applicant?.full_name || 'Unknown',
+        applicant_email: assignment.application?.applicant?.email || '',
+        submitted_at: assignment.application?.submitted_at || null,
+        program: {
+          title: assignment.application?.program?.title || 'Unknown Program',
+          description: assignment.application?.program?.description || ''
+        }
+      }
+    }))
 
-    // Apply search filter (client-side for responsiveness)
-    if (searchTerm) {
-      filtered = filtered.filter(review =>
-        review.application.applicant_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        review.application.program.title.toLowerCase().includes(searchTerm.toLowerCase())
+    // Apply search filter (client-side for now)
+    if (searchParams.search) {
+      const searchTerm = searchParams.search.toLowerCase()
+      return reviews.filter((review: any) =>
+        review.application.applicant_name.toLowerCase().includes(searchTerm) ||
+        review.application.program.title.toLowerCase().includes(searchTerm)
       )
     }
 
-    setFilteredReviews(filtered)
-  }, [reviews, searchTerm])
+    return reviews
+  } catch (error) {
+    console.error('Error fetching reviews:', error)
+    return []
+  }
+}
 
+function ReviewsPageSkeleton() {
+  return (
+    <div className="container mx-auto py-8 px-4">
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
 
-  if (authLoading) {
-    return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="space-y-6">
-          {/* Header skeleton */}
-          <div>
-            <Skeleton className="h-8 w-48 mb-2" />
-            <Skeleton className="h-4 w-96" />
-          </div>
+        {/* Stats skeleton */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-4 w-20 mb-2" />
+                <Skeleton className="h-8 w-12 mb-2" />
+                <Skeleton className="h-3 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-          {/* Stats skeleton */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-4 w-20" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-12 mb-2" />
-                  <Skeleton className="h-3 w-24" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        {/* Filters skeleton */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-32" />
+        </div>
 
-          {/* Filters skeleton */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Skeleton className="h-10 flex-1" />
-            <Skeleton className="h-10 w-32" />
-            <Skeleton className="h-10 w-32" />
-            <Skeleton className="h-10 w-32" />
-          </div>
-
-          {/* Reviews skeleton */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full mb-4" />
-                  <Skeleton className="h-10 w-full" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        {/* Reviews skeleton */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-6 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/2 mb-4" />
+                <Skeleton className="h-4 w-full mb-4" />
+                <Skeleton className="h-10 w-full" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
-    )
+    </div>
+  )
+}
+
+export default async function ReviewsPage({ searchParams }: PageProps) {
+  // Get user from server-side cookies
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  
+  if (authError || !user) {
+    redirect('/auth/login')
   }
+
+  // Check if user has any review assignments (is a reviewer)
+  const { data: reviewAssignments } = await supabase
+    .from('review_assignments')
+    .select('id')
+    .eq('reviewer_id', user.id)
+    .limit(1)
+
+  const isReviewer = (reviewAssignments?.length || 0) > 0
 
   if (!isReviewer) {
     return (
@@ -170,7 +234,7 @@ export default function ReviewsPage() {
           <CardContent className="py-8 text-center">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
             <p className="text-gray-600">
-              You don't have reviewer permissions to access this page.
+              You don't have any review assignments. Contact an administrator if you should have reviewer access.
             </p>
           </CardContent>
         </Card>
@@ -190,106 +254,59 @@ export default function ReviewsPage() {
         </div>
 
         {/* Stats */}
-        <ReviewStats stats={stats} loading={statsLoading} />
-
-        {/* Filters and Search */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search by applicant name or program..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        <Suspense fallback={
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-6">
+                  <Skeleton className="h-4 w-20 mb-2" />
+                  <Skeleton className="h-8 w-12 mb-2" />
+                  <Skeleton className="h-3 w-24" />
+                </CardContent>
+              </Card>
+            ))}
           </div>
+        }>
+          <ReviewStatsServer userId={user.id} />
+        </Suspense>
 
-          <Select value={statusFilter} onValueChange={(value: FilterStatus) => setStatusFilter(value)}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="not_started">Not Started</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="overdue">Overdue</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Filters */}
+        <ReviewsFilters searchParams={searchParams} />
 
-          <Select value={priorityFilter} onValueChange={(value: FilterPriority) => setPriorityFilter(value)}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Priorities</SelectItem>
-              <SelectItem value="high">High Priority</SelectItem>
-              <SelectItem value="medium">Medium Priority</SelectItem>
-              <SelectItem value="low">Low Priority</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SortAsc className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="due_date">Due Date</SelectItem>
-              <SelectItem value="priority">Priority</SelectItem>
-              <SelectItem value="status">Status</SelectItem>
-              <SelectItem value="program">Program</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Reviews Grid */}
-        {loading ? (
+        {/* Reviews List */}
+        <Suspense fallback={
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Card key={i}>
-                <CardHeader>
+                <CardContent className="p-6">
                   <Skeleton className="h-6 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent>
+                  <Skeleton className="h-4 w-1/2 mb-4" />
                   <Skeleton className="h-4 w-full mb-4" />
                   <Skeleton className="h-10 w-full" />
                 </CardContent>
               </Card>
             ))}
           </div>
-        ) : error ? (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <h3 className="text-lg font-medium text-red-600 mb-2">Error Loading Reviews</h3>
-              <p className="text-gray-600 mb-4">{error}</p>
-              <Button onClick={fetchReviews} variant="outline">
-                Try Again
-              </Button>
-            </CardContent>
-          </Card>
-        ) : filteredReviews.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Reviews Found</h3>
-              <p className="text-gray-600">
-                {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all'
-                  ? "Try adjusting your filters to see more reviews."
-                  : "You don't have any reviews assigned at the moment."
-                }
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredReviews.map((review) => (
-              <ReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-        )}
+        }>
+          <ReviewsListServer userId={user.id} searchParams={searchParams} />
+        </Suspense>
       </div>
     </div>
   )
+}
+
+async function ReviewStatsServer({ userId }: { userId: string }) {
+  const stats = await getReviewStats(userId)
+  return <ReviewStats stats={stats} loading={false} />
+}
+
+async function ReviewsListServer({ 
+  userId, 
+  searchParams 
+}: { 
+  userId: string
+  searchParams: SearchParams 
+}) {
+  const reviews = await getReviews(userId, searchParams)
+  return <ReviewsList reviews={reviews} />
 }
